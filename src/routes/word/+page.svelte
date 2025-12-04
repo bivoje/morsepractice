@@ -29,13 +29,11 @@
   }
 
   function morseOncallback() {
-    console.log('morse on');
     morseOn = true;
     startBeep();
   }
 
   function morseOffcallback() {
-    console.log('morse off');
     morseOn = false;
     stopBeep();
   }
@@ -164,6 +162,23 @@
     wrongIndex = -1;
   }
 
+  let offTimerHandle: number | null = null;
+
+  function setOffTimer(timeMs: number | null = null) {
+    console.log(`set off timer: ${timeMs} ms`);
+    if (offTimerHandle !== null) {
+      clearTimeout(offTimerHandle);
+      offTimerHandle = null;
+    }
+    if (timeMs !== null) {
+      offTimerHandle = setTimeout(() => {
+        console.log(`off timer expired (${timeMs} ms)`);
+        offTimerHandle = null;
+        callMorseInput('', false);
+      }, timeMs);
+    }
+  }
+
   function handleKey(e: KeyboardEvent) {
     if (e.repeat) return;
 
@@ -171,10 +186,23 @@
     if ((e as any).ctrlKey || (e as any).altKey || (e as any).metaKey) return;
     const key = (e as KeyboardEvent).key;
 
-    const out = morseInput.inputKey(key, e.type === 'keydown');
+    if (e.type === 'keydown') {
+      setOffTimer(null);
+    }
+
+    callMorseInput(key, e.type === 'keydown');
+  }
+
+  function callMorseInput(key: string, pressed: boolean) {
+    const out = morseInput.inputKey(key, pressed);
+    console.log(`key ${pressed ? 'down' : 'up'}: ${key} -> morse output: "${out}"`);
+
+    if (out.offTimer) {
+      setOffTimer(out.offTimer);
+    }
 
     // out may be a single character (or space). Feed each character into letterInput
-    for (const ch of Array.from(out)) {
+    for (const ch of Array.from(out.char)) {
       letterInput(ch);
     }
     currentCode = morseInput.showIndex();

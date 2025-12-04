@@ -27,6 +27,8 @@ const DEFAULT_MORSE: MorseMap = {
     'RN': '.-.-.', // next message follows
 };
 
+type InputResult = { char: string, offTimer: number, };
+
 /**
  * MorseDecode decodes morse text (dot/dash strings) and can parse timed pulse sequences.
  *
@@ -41,11 +43,13 @@ export class MorseDecode {
   private tree: (string | null)[] = [];
   protected oncallback: () => void;
   protected offcallback: () => void;
+  protected ditDuration: number; // in ms
 
   constructor(oncallback: () => void, offcallback: () => void) {
     this.installMap(DEFAULT_MORSE);
     this.oncallback = oncallback;
     this.offcallback = offcallback;
+    this.ditDuration = 100;
   }
 
   // create binary search tree from map
@@ -118,8 +122,13 @@ export class MorseDecode {
     return (ch ?? '?') + ' ' + code.split('').reverse().join('');
   }
 
+  forceEmit(): string {
+    const ch = this.resetIndex()
+    return ch || '';
+  }
+
   setWPM(wpm: number) {
-    // placeholder
+    this.ditDuration = 1200 / wpm; // in ms
   }
 }
 
@@ -127,18 +136,18 @@ class MorseDecodeDouble extends MorseDecode {
 }
 
 class MorseDecodeTimed extends MorseDecode {
-  ditDuration: number; // in ms
   // state for timed input
   private lastTime: number | null = null;
   private state: 'idle' | 'on' | 'code' | 'word' = 'idle';
 
   constructor(oncallback: () => void, offcallback: () => void) {
     super(oncallback, offcallback);
-    this.ditDuration = 100;
   }
 
-  setWPM(wpm: number) {
-    this.ditDuration = 1200 / wpm; // in ms
+  forceEmit(): string {
+    const ch = this.resetIndex()
+    this.state = 'idle';
+    return ch || '';
   }
 
   /*     press / release
@@ -147,17 +156,18 @@ class MorseDecodeTimed extends MorseDecode {
   code   goto 'on' / goto code or emit letter, goto word; set timer
   word   goto 'on' / goto word or emit space, goto idle; set timer
   */
-  input(pressed: boolean) : string {
-    console.log(`input(${pressed}), state=${this.state}`);
+  input(pressed: boolean) : InputResult {
     const now = Date.now();
 
     // first transition: just record state
     if (this.lastTime === null) {
       this.lastTime = now;
-      return '';
+      return { char: '', offTimer: 0 };
     }
 
     const duration = now - this.lastTime;
+
+    console.log(`input: pressed=${pressed}, state=${this.state}, duration=${duration} ms`);
 
     if (this.state === 'idle') {
       if (pressed) {
@@ -165,7 +175,7 @@ class MorseDecodeTimed extends MorseDecode {
         this.lastTime = now;
         this.oncallback();
       }
-      return '';
+      return { char: '', offTimer: 0 };
 
     } else if (this.state === 'on') {
       if (!pressed) {
@@ -179,13 +189,16 @@ class MorseDecodeTimed extends MorseDecode {
         this.lastTime = now;
         this.offcallback();
       }
-      return '';
+      return { char: '', offTimer: this.ditDuration * 3 };
 
     } else if (this.state === 'code') {
       // measure OFF duration
       let ch = '';
+      let offtime = 0;
       if (duration >= this.ditDuration * 3) { // letter gap
         ch += this.resetIndex();
+        offtime = this.ditDuration * 7 - duration;
+        console.log(`letter gap detected, emitted: ${ch}`);
         this.state = 'word';
       }
       if (duration >= this.ditDuration * 7) { // word gap
@@ -197,20 +210,21 @@ class MorseDecodeTimed extends MorseDecode {
         this.lastTime = now;
         this.oncallback();
       }
-      return ch;
+      return { char: ch, offTimer: offtime };
 
     } else if (this.state === 'word') {
       let ch = '';
       if (duration >= this.ditDuration * 7) { // word gap
         this.state = 'idle';
         ch = ' ';
+        console.log(`word gap detected, emitted: ${ch}`);
       }
       if (pressed) {
         this.state = 'on';
         this.lastTime = now;
         this.oncallback();
       }
-      return ch;
+      return { char: ch, offTimer: 0 };
 
     } else {
       throw new Error(`invalid state: ${this.state}`);
@@ -226,29 +240,31 @@ class MorseDecodeTimed extends MorseDecode {
  * @returns wpm (float)
  */
 export function wpmCalc(words: string[], seconds: number): number {
-    let ditCount = 0;
-    for (const w of words) {
-        for (const c of w) {
-            const cUpper = c.toUpperCase();
-            if (cUpper in DEFAULT_MORSE) {
-                const code = DEFAULT_MORSE[cUpper];
-                for (const s of code) {
-                    if (s === '.') ditCount += 1;
-                    else if (s === '-') ditCount += 3;
-                }
-                ditCount += (code.length - 1) * 1; // intra-character gaps
-            } else {
-                // print warning
-                console.warn(`wpmCalc: character '${c}' not in Morse map`);
-            }
+  let ditCount = 0;
+  for (const w of words) {
+    for (const c of w) {
+      const cUpper = c.toUpperCase();
+      if (cUpper in DEFAULT_MORSE) {
+        const code = DEFAULT_MORSE[cUpper];
+        for (const s of code) {
+          if (s === '.') ditCount += 1;
+          else if (s === '-') ditCount += 3;
         }
-        ditCount += (w.length - 1) * 3; // inter-character gaps
+        ditCount += (code.length - 1) * 1; // intra-character gaps
+      } else if (c === ' ') {
+        ditCount += 7;
+      } else {
+        // print warning
+        console.warn(`wpmCalc: character '${c}' not in Morse map`);
+      }
     }
-    ditCount += (words.length - 0) * 7; // inter-word gaps
+    ditCount += (w.length - 1) * 3; // inter-character gaps
+  }
+  ditCount += (words.length - 0) * 7; // inter-word gaps
 
-    const ditspeed = ditCount / seconds; // dits per second
-    const wpm = (ditspeed * 60) / 50; // 1 WPM = 50 dits per minute
-    return wpm;
+  const ditspeed = ditCount / seconds; // dits per second
+  const wpm = (ditspeed * 60) / 50; // 1 WPM = 50 dits per minute
+  return wpm;
 }
 
 export default MorseDecode;
@@ -293,40 +309,40 @@ export class MorseInput {
   // Generic per-key input dispatcher. Returns a string when an emitted
   // character is available (for methods that produce decoded letters), or
   // null otherwise. For 'raw' method this simply returns the key.
-  inputKey(key: string, pressed: boolean): string {
+  inputKey(key: string, pressed: boolean): InputResult {
     if (this.method === 'raw') {
       if (key === 'Backspace') {
-        return '\b';
+        return { char: '\b', offTimer: 0 };
       }
-      return key;
+      return { char: key, offTimer: 0 };
 
     } else if (this.method === 'side') {
-      if (!pressed) return '';
+      if (!pressed) return { char: '', offTimer: 0 };
       if (key === 'j') {
         this.decodeSide.commitDot();
-        return '';
+        return { char: '', offTimer: 0 };
       }
       if (key === 'k') {
         this.decodeSide.commitDash();
-        return '';
+        return { char: '', offTimer: 0 };
       }
       if (key === ' ' || key === 'Enter') {
-        return this.decodeSide.resetIndex() || '';
+        return { char: (this.decodeSide.forceEmit()) + ' ', offTimer: 0 };
       }
-      return '';
+      return { char: '', offTimer: 0 };
 
     } else if (this.method === 'straight') {
       if (key === ' ' || key === 'Enter') {
-        return this.decodeStraight.resetIndex() || '';
+        return { char: (this.decodeStraight.forceEmit()) + ' ', offTimer: 0 };
       }
       return this.decodeStraight.input(pressed);
 
     } else if (this.method === 'paddle') {
       // unimplemented methods return null for now
-      return '';
+      return { char: '', offTimer: 0 };
     } else if (this.method === 'iambic') {
       // unimplemented methods return null for now
-      return '';
+      return { char: '', offTimer: 0 };
 
     } else {
       throw new Error(`invalid input method: ${this.method}`);
