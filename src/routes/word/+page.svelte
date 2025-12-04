@@ -126,6 +126,23 @@
   // input method: raw | straight | side | paddle | iambic
   const morseInput = new MorseInput('straight', morseOncallback, morseOffcallback);
 
+  // words-per-minute control for timed morse input
+  let wpm: number = $state(20);
+
+  // Explicit updater for WPM — avoids Svelte reactive statements that are
+  // disallowed in the current 'runes' mode. Call on slider input/change.
+  function applyWpm() {
+    try {
+      morseInput.decodeStraight.setWPM(wpm);
+      morseInput.decodeSide.setWPM(wpm);
+    } catch (e) {
+      // ignore if decoders not present
+    }
+  }
+
+  // Apply initial WPM immediately
+  applyWpm();
+
   let averageWPM: string = $state('0.0');
   let wpmInterval = setInterval(() => {
     if (history.length < 2) {
@@ -383,6 +400,10 @@
       <button onclick={loadFile} aria-label="Load a word file">Load</button>
       <button class:active={random} aria-pressed={random} onclick={toggleRandom}>Random</button>
       <button class:active={showMorse} aria-pressed={showMorse} onclick={toggleShowMorse}>Show Code</button>
+      <label class="wpm-control">WPM:
+        <input type="range" min="5" max="40" step="1" bind:value={wpm} oninput={applyWpm} aria-label="WPM slider" />
+        <output>{wpm}</output>
+      </label>
       <label class="input-method">Input:
         <select onchange={(e) => {
           console.log('setting method to', (e.target as HTMLSelectElement).value);
