@@ -1,0 +1,19 @@
+/* Basic layout styles for the morse trainer */
+html, body {
+	height: 100%;
+	margin: 0;
+	font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+}
+
+.page-container {
+	display: flex;
+	justify-content: center;
+	align-items: flex-start;
+	padding: 2rem;
+}
+
+/* fallback gray for next-word if component-level styles don't load */
+.next-word {
+	color: #888;
+}
+
