@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-    import { wpmCalc } from '../../lib/morse';
+    import { wpmCalc, MorseInput } from '../../lib/morse';
+    import type { InputMethod } from '../../lib/morse';
 
   // Default word list — replace or extend later
   let words: string[] = [];
@@ -18,6 +19,19 @@
 
   let random: boolean = $state(false);
 
+  let currentCode: string = $state(''); // current morse code buffer display
+
+  // whether to show the current morse buffer in the UI
+  let showMorse: boolean = $state(true);
+
+  function toggleShowMorse() {
+    showMorse = !showMorse;
+  }
+
+  // input method: raw | straight | side | paddle | iambic
+  let inputMethod: InputMethod = $state('raw');
+  const morseInput = new MorseInput('raw');
+
   let averageWPM: string = $state('0.0');
   let wpmInterval = setInterval(() => {
     if (history.length < 2) {
@@ -31,6 +45,7 @@
 
   function toggleRandom() {
     random = !random;
+    init();
   }
 
   function nextWord() {
@@ -58,13 +73,12 @@
     if ((e as any).ctrlKey || (e as any).altKey || (e as any).metaKey) return;
     const key = (e as KeyboardEvent).key;
 
-    if (key === 'Backspace') {
-        letterInput('\b');
+    const out = morseInput.inputKey(key);
+    // out may be a single character (or space). Feed each character into letterInput
+    for (const ch of Array.from(out)) {
+      letterInput(ch);
     }
-
-    // only handle single character keys
-    if (key.length !== 1) return;
-    letterInput(key);
+    currentCode = morseInput.decode.showIndex();
   }
 
   function letterInput(letter: string) {
@@ -127,6 +141,7 @@
     dragging = false;
   }
 
+  // https://www.reddit.com/r/tauri/comments/1kswzv0/comment/mtp1q9p/
   function handleDrop(e: DragEvent) {
     e.preventDefault();
     dragging = false;
@@ -183,16 +198,18 @@
       init(defaultWords);
     }).catch((err) => {
       // alert('Error loading default word list: ' + String(err) );
-      init();
+      init([]);
     });
   });
 
-  function init(newWords: string[] = []) {
-    if (newWords.length == 0) {
-      newWords = [ 'paris', 'codex', 'this', 'is', 'testing', 'words'];
+  function init(newWords: string[] | null = null) {
+    if (newWords !== null) {
+      if (newWords.length == 0) {
+        newWords = [ 'paris', 'codex', 'this', 'is', 'testing', 'words'];
+      }
+      words = newWords;
     }
 
-    words = newWords;
     // reset history
     history = [];
     typed = '';
@@ -229,14 +246,25 @@
       <div class="sibling next" aria-hidden="true">{ history.length >= 1 ? history[history.length - 1].word : '' }</div>
     </div>
 
-    <div class="controls">
+    {#if inputMethod !== 'raw' && showMorse}
+      <div class="morse-buffer" aria-hidden="true">
+        <code>{currentCode}</code>
+      </div>
+    {/if}
 
-      <button
-        class:active={random}
-        aria-pressed={random}
-        onclick={toggleRandom}
-      >Random</button>
+    <div class="controls">
       <button onclick={loadFile} aria-label="Load a word file">Load</button>
+      <button class:active={random} aria-pressed={random} onclick={toggleRandom}>Random</button>
+      <button class:active={showMorse} aria-pressed={showMorse} onclick={toggleShowMorse}>Show Code</button>
+      <label class="input-method">Input:
+        <select bind:value={inputMethod} onchange={() => morseInput.setMethod(inputMethod)}>
+          <option value="raw">Raw</option>
+          <option value="side">Side</option>
+          <option value="straight">Straight</option>
+          <option value="paddle">Paddle</option>
+          <option value="iambic">Iambic</option>
+        </select>
+      </label>
     </div>
 
     <div class="history" role="table" aria-label="previous words">
@@ -276,7 +304,7 @@
   @keyframes flicker{0%{transform:translateY(-2px) scale(1.02)}50%{transform:translateY(0) scale(.98)}100%{transform:translateY(-2px) scale(1)}}
 
   .controls{margin-top:18px;display:flex;gap:8px;justify-content:center;align-items:center}
-  .controls button{padding:8px 12px;border-radius:6px;border:1px solid #cfd9ea;background:#f8fbff;color:#065fd4;cursor:pointer;display:inline-flex;align-items:center;height:36px}
+  .controls button{padding:3px 6px;border-radius:6px;border:1px solid #cfd9ea;background:#f8fbff;color:#065fd4;cursor:pointer;display:inline-flex;align-items:center;height:20px}
   .controls button.active, .controls button[aria-pressed="true"]{background:#065fd4;color:#fff;border-color:#065fd4}
 
   /* History: table-like rows with very subtle borders */
@@ -295,4 +323,7 @@
 
   /* visual state when a draggable file is over the page */
   .mode.dragging{outline:3px dashed rgba(6,95,212,0.9);background:rgba(6,95,212,0.03)}
+
+  .morse-buffer{margin-top:10px;color:#234;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;font-size:1rem;min-height:1.2em}
+  .morse-buffer code{background:transparent;padding:2px 6px;border-radius:4px}
 </style>

@@ -13,7 +13,7 @@ const DEFAULT_MORSE: MorseMap = {
     '.': '.-.-.-', ',': '--..--', '?': '..--..', "'": '.----.', '!': '-.-.--',
     '/': '-..-.', '(': '-.--.', ')': '-.--.-', '&': '.-...', ':': '---...',
     ';': '-.-.-.', '=': '-...-', '+': '.-.-.', '-': '-....-', '_': '..--.-',
-    '"': '.-..-.', '$': '...-..-', '@': '.--.-.', ' ': '/',
+    '"': '.-..-.', '$': '...-..-', '@': '.--.-.',
 
     // prosigns
     'AR': '.-.-.', // end of message
@@ -23,9 +23,6 @@ const DEFAULT_MORSE: MorseMap = {
     'HH': '........', // error
     'CT': '-.-.-', // start copying
     'RN': '.-.-.', // next message follows
-
-
-
 };
 
 /**
@@ -67,7 +64,6 @@ export class MorseDecode {
     this.tree = tree;
   }
 
-
   // decode a code into letter
   decode(code: string): string | null {
     let index = 0;
@@ -82,21 +78,123 @@ export class MorseDecode {
     }
     return this.tree[index];
   }
+
+  dumpTree(): void {
+    console.log(this.tree);
+  }
+
+  index: number = 0;
+
+  resetIndex() : string | null {
+    const ch = this.tree[this.index];
+    this.index = 0;
+    return ch;
+  }
+  inputDot() {
+    this.index = 2 * this.index + 1;
+  }
+  inputDash() {
+    this.index = 2 * this.index + 2;
+  }
+  showIndex() : string {
+    let code = '';
+    let index = this.index;
+    while (index > 0) {
+      if (index % 2 === 1) {
+        code += '.';
+      } else {
+        code += '-';
+      }
+      index = Math.floor((index - 1) / 2);
+    }
+    return code.split('').reverse().join('');
+  }
 }
 
 class MorseDecodeTimed extends MorseDecode {
   ditDuration: number; // in ms
+  // state for timed input
+  private lastTime: number | null = null;
+  private state: 'idle' | 'on' | 'code' | 'word' = 'idle';
 
   constructor(ditDuration: number, map?: MorseMap) {
     super(map);
     this.ditDuration = ditDuration;
   }
 
-  // decode timed input and emit letters if complete
-  input(pressed: boolean) : string | null {
-    return null;
-  }
+  /*     press / release
+  idle   goto 'on' / ignore
+    on   ignore / commit dot/dash, go to code; set timer
+  code   goto 'on' / goto code or emit letter, goto word; set timer
+  word   goto 'on' / goto word or emit space, goto idle; set timer
+  */
+  input(pressed: boolean) : string {
+    const now = Date.now();
 
+    // first transition: just record state
+    if (this.lastTime === null) {
+      this.lastTime = now;
+      return '';
+    }
+
+    const duration = now - this.lastTime;
+
+    if (this.state === 'idle') {
+      if (pressed) {
+        this.state = 'on';
+        this.lastTime = now;
+      }
+      return '';
+
+    } else if (this.state === 'on') {
+      if (!pressed) {
+        // measure ON duration
+        if (duration < this.ditDuration * 2) {
+          this.inputDot();
+        } else {
+          this.inputDash();
+        }
+        this.state = 'code';
+        this.lastTime = now;
+      }
+      return '';
+
+    } else if (this.state === 'code') {
+      if (pressed) {
+        this.state = 'on';
+        this.lastTime = now;
+      } else {
+        // measure OFF duration
+        let ch = '';
+        if (duration >= this.ditDuration * 3) { // letter gap
+          ch += this.resetIndex();
+          this.state = 'word';
+        }
+        if (duration >= this.ditDuration * 7) { // word gap
+          ch += ' ';
+          this.state = 'idle';
+        }
+        return ch;
+      }
+      return '';
+
+    } else if (this.state === 'word') {
+      if (pressed) {
+        this.state = 'on';
+        this.lastTime = now;
+      } else {
+        // measure OFF duration
+        if (duration >= this.ditDuration * 7) { // word gap
+          this.state = 'idle';
+          return ' ';
+        }
+      }
+      return '';
+
+    } else {
+      throw new Error(`invalid state: ${this.state}`);
+    }
+  }
 }
 
 
@@ -134,3 +232,79 @@ export function wpmCalc(words: string[], seconds: number): number {
 }
 
 export default MorseDecode;
+
+export type InputMethod = 'raw' | 'straight' | 'side' | 'paddle' | 'iambic';
+
+/**
+ * MorseInput provides a small dispatcher to handle different input methods.
+ * - 'raw': returns keys directly
+ * - 'side': uses a `MorseDecode` instance and the caller should invoke
+ *           `inputDot()` / `inputDash()` when appropriate; call `endLetter()` to
+ *           emit the decoded character for the sequence typed so far.
+ * Other methods are placeholders and will return null until implemented.
+ */
+export class MorseInput {
+  method: InputMethod;
+  decode: MorseDecode;
+
+  constructor(method: InputMethod = 'raw', map?: MorseMap) {
+    this.method = method;
+    this.decode = new MorseDecode(map);
+  }
+
+  setMethod(m: InputMethod) {
+    this.method = m;
+    // reset decode state when switching to a morse-driven method
+    if (m === 'side' || m === 'paddle' || m === 'iambic') {
+      this.decode.resetIndex();
+    }
+  }
+
+  // Generic per-key input dispatcher. Returns a string when an emitted
+  // character is available (for methods that produce decoded letters), or
+  // null otherwise. For 'raw' method this simply returns the key.
+  inputKey(key: string): string {
+    if (this.method === 'raw') {
+      if (key === 'Backspace') {
+        return '\b';
+      }
+      return key;
+
+    } else if (this.method === 'side') {
+      // convention: 'j' -> dot, 'k' -> dash, space/Enter -> end letter
+      if (key === 'j') {
+        this.inputDot();
+        return '';
+      }
+      if (key === 'k') {
+        this.inputDash();
+        return '';
+      }
+      if (key === ' ' || key === 'Enter') {
+        return this.endLetter() || '';
+      }
+      return '';
+    }
+
+    // unimplemented methods return null for now
+    return '';
+  }
+
+  // Called by side/paddle/iambic style handlers when a dot input occurs.
+  inputDot(): void {
+    this.decode.inputDot();
+  }
+
+  // Called by side/paddle/iambic style handlers when a dash input occurs.
+  inputDash(): void {
+    this.decode.inputDash();
+  }
+
+  // Signals end of a character; decodes the buffered traversal index into a
+  // character (or null) and resets the index for the next letter.
+  endLetter(): string | null {
+    // resetIndex returns the character at the current traversal index, if any,
+    // and resets the traversal index to the root.
+    return this.decode.resetIndex();
+  }
+}
