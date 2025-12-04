@@ -27,7 +27,7 @@ const DEFAULT_MORSE: MorseMap = {
     'RN': '.-.-.', // next message follows
 };
 
-type InputResult = { char: string, offTimer: number, };
+export type InputResult = { char: string, offTimer: number, };
 
 /**
  * MorseDecode decodes morse text (dot/dash strings) and can parse timed pulse sequences.
@@ -132,10 +132,10 @@ export class MorseDecode {
   }
 }
 
-class MorseDecodeDouble extends MorseDecode {
+export class MorseDecodeDouble extends MorseDecode {
 }
 
-class MorseDecodeTimed extends MorseDecode {
+export class MorseDecodeTimed extends MorseDecode {
   // state for timed input
   private lastTime: number | null = null;
   private state: 'idle' | 'on' | 'code' | 'word' = 'idle';
@@ -268,84 +268,3 @@ export function wpmCalc(words: string[], seconds: number): number {
 }
 
 export default MorseDecode;
-
-export type InputMethod = 'raw' | 'straight' | 'side' | 'paddle' | 'iambic';
-
-/**
- * MorseInput provides a small dispatcher to handle different input methods.
- * - 'raw': returns keys directly
- * - 'side': uses a `MorseDecodeDouble` instance and the caller should invoke
- *           `commitDot()` / `commitDash()` when appropriate; call `endLetter()` to
- *           emit the decoded character for the sequence typed so far.
- * Other methods are placeholders and will return null until implemented.
- */
-export class MorseInput {
-  method: InputMethod;
-  decodeSide: MorseDecodeDouble;
-  decodeStraight : MorseDecodeTimed;
-
-  constructor(method: InputMethod, oncallback: () => void, offcallback: () => void) {
-    this.method = method;
-    this.decodeSide = new MorseDecodeDouble(oncallback, offcallback);
-    this.decodeStraight = new MorseDecodeTimed(oncallback, offcallback);
-  }
-
-  setMethod(m: InputMethod) {
-    this.method = m;
-    // reset decode state when switching to a morse-driven method
-    this.decodeSide.resetIndex();
-    this.decodeStraight.resetIndex();
-  }
-
-  showIndex() : string {
-    if (this.method === 'side') {
-      return this.decodeSide.showIndex();
-    } else if (this.method === 'straight') {
-      return this.decodeStraight.showIndex();
-    }
-    return '';
-  }
-
-  // Generic per-key input dispatcher. Returns a string when an emitted
-  // character is available (for methods that produce decoded letters), or
-  // null otherwise. For 'raw' method this simply returns the key.
-  inputKey(key: string, pressed: boolean): InputResult {
-    if (this.method === 'raw') {
-      if (key === 'Backspace') {
-        return { char: '\b', offTimer: 0 };
-      }
-      return { char: key, offTimer: 0 };
-
-    } else if (this.method === 'side') {
-      if (!pressed) return { char: '', offTimer: 0 };
-      if (key === 'j') {
-        this.decodeSide.commitDot();
-        return { char: '', offTimer: 0 };
-      }
-      if (key === 'k') {
-        this.decodeSide.commitDash();
-        return { char: '', offTimer: 0 };
-      }
-      if (key === ' ' || key === 'Enter') {
-        return { char: (this.decodeSide.forceEmit()) + ' ', offTimer: 0 };
-      }
-      return { char: '', offTimer: 0 };
-
-    } else if (this.method === 'straight') {
-      if (key === ' ' || key === 'Enter') {
-        return { char: (this.decodeStraight.forceEmit()) + ' ', offTimer: 0 };
-      }
-      return this.decodeStraight.input(pressed);
-
-    } else if (this.method === 'paddle') {
-      // unimplemented methods return null for now
-      return { char: '', offTimer: 0 };
-    } else if (this.method === 'iambic') {
-      // unimplemented methods return null for now
-      return { char: '', offTimer: 0 };
-
-    } else {
-      throw new Error(`invalid input method: ${this.method}`);
-    }
-  }
-}

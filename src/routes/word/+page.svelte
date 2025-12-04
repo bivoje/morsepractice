@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-    import { wpmCalc, MorseInput } from '../../lib/morse';
-    import type { InputMethod } from '../../lib/morse';
+  import { wpmCalc } from '$lib/morse';
+
+  import MorseInput from '../MorseInput.svelte';
 
   // Default word list — replace or extend later
   let words: string[] = [];
@@ -18,130 +19,6 @@
   let prevCount: number = $state(5);
 
   let random: boolean = $state(false);
-
-  let currentCode: string = $state(''); // current morse code buffer display
-
-  // whether to show the current morse buffer in the UI
-  let showMorse: boolean = $state(true);
-
-  function toggleShowMorse() {
-    showMorse = !showMorse;
-  }
-
-  function morseOncallback() {
-    morseOn = true;
-    startBeep();
-  }
-
-  function morseOffcallback() {
-    morseOn = false;
-    stopBeep();
-  }
-
-  // visual flag: true during a morse 'on' event (used to tint background)
-  let morseOn: boolean = $state(false);
-  // WebAudio: use a persistent oscillator and control gain for low-latency toggles.
-  // Creating/stopping an oscillator repeatedly adds latency and can drop clicks when toggled rapidly.
-  let _audioCtx: AudioContext | null = null;
-  let _osc: OscillatorNode | null = null;
-  let _gain: GainNode | null = null;
-  let _audioInitialized = false;
-
-  function ensureAudio(): AudioContext | null {
-    if (_audioCtx) return _audioCtx;
-    const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
-    if (!AC) return null;
-    _audioCtx = new AC();
-    return _audioCtx;
-  }
-
-  // Initialize oscillator/gain once and keep oscillator running. startBeep/stopBeep will only adjust gain.
-  async function initAudioOnce() {
-    const ctx = ensureAudio();
-    if (!ctx) return null;
-    if (_audioInitialized) return ctx;
-    _gain = ctx.createGain();
-    // keep it effectively silent initially
-    _gain.gain.value = 0.000001;
-    _gain.connect(ctx.destination);
-
-    _osc = ctx.createOscillator();
-    _osc.type = 'sine';
-    _osc.frequency.value = 600;
-    _osc.connect(_gain);
-    try {
-      _osc.start();
-    } catch (e) {
-      // start may throw if not allowed yet; we'll still mark initialized so further resume/start attempts don't duplicate
-      console.warn('oscillator start warning', e);
-    }
-    _audioInitialized = true;
-    return ctx;
-  }
-
-  // Pre-initialize audio on first user gesture to satisfy browser autoplay/user-gesture policies.
-  if (typeof window !== 'undefined') {
-    const _unlockAudio = async () => {
-      try { await initAudioOnce(); } catch (e) { /* ignore */ }
-      window.removeEventListener('pointerdown', _unlockAudio);
-      window.removeEventListener('keydown', _unlockAudio);
-    };
-    window.addEventListener('pointerdown', _unlockAudio, { once: true });
-    window.addEventListener('keydown', _unlockAudio, { once: true });
-  }
-
-  async function startBeep() {
-    try {
-      const ctx = await initAudioOnce();
-      if (!ctx || !_gain) return;
-      if (ctx.state === 'suspended') {
-        try { await ctx.resume(); } catch (e) { /* ignore */ }
-      }
-      const t = ctx.currentTime;
-      // cancel any scheduled values and ramp quickly (fast attack)
-      _gain.gain.cancelScheduledValues(t);
-      const from = Math.max(0.000001, _gain.gain.value || 0.000001);
-      _gain.gain.setValueAtTime(from, t);
-      _gain.gain.linearRampToValueAtTime(0.08, t + 0.005);
-    } catch (err) {
-      console.error('startBeep error', err);
-    }
-  }
-
-  function stopBeep() {
-    try {
-      const ctx = _audioCtx;
-      if (!ctx || !_gain) return;
-      const t = ctx.currentTime;
-      _gain.gain.cancelScheduledValues(t);
-      _gain.gain.setValueAtTime(_gain.gain.value, t);
-      // quick release but not instant to avoid zipper artifacts
-      _gain.gain.linearRampToValueAtTime(0.000001, t + 0.01);
-      // keep oscillator running for next start to ensure minimal latency
-    } catch (err) {
-      console.error('stopBeep error', err);
-    }
-  }
-
-  // input method: raw | straight | side | paddle | iambic
-  const morseInput = new MorseInput('straight', morseOncallback, morseOffcallback);
-
-  // words-per-minute control for timed morse input
-  let wpm: number = $state(20);
-
-  // Explicit updater for WPM — avoids Svelte reactive statements that are
-  // disallowed in the current 'runes' mode. Call on slider input/change.
-  function applyWpm() {
-    try {
-      morseInput.decodeStraight.setWPM(wpm);
-      morseInput.decodeSide.setWPM(wpm);
-    } catch (e) {
-      // ignore if decoders not present
-    }
-  }
-
-  // Apply initial WPM immediately
-  applyWpm();
 
   let averageWPM: string = $state('0.0');
   let wpmInterval = setInterval(() => {
@@ -179,21 +56,17 @@
     wrongIndex = -1;
   }
 
-  let offTimerHandle: number | null = null;
+  let morseInput: MorseInput;
 
-  function setOffTimer(timeMs: number | null = null) {
-    console.log(`set off timer: ${timeMs} ms`);
-    if (offTimerHandle !== null) {
-      clearTimeout(offTimerHandle);
-      offTimerHandle = null;
-    }
-    if (timeMs !== null) {
-      offTimerHandle = setTimeout(() => {
-        console.log(`off timer expired (${timeMs} ms)`);
-        offTimerHandle = null;
-        callMorseInput('', false);
-      }, timeMs);
-    }
+  // visual flag: true during a morse 'on' event (used to tint background)
+  let morseOn: boolean = $state(false);
+
+  function morseOnCallback() {
+    morseOn = true;
+  }
+
+  function morseOffCallback() {
+    morseOn = false;
   }
 
   function handleKey(e: KeyboardEvent) {
@@ -203,26 +76,7 @@
     if ((e as any).ctrlKey || (e as any).altKey || (e as any).metaKey) return;
     const key = (e as KeyboardEvent).key;
 
-    if (e.type === 'keydown') {
-      setOffTimer(null);
-    }
-
-    callMorseInput(key, e.type === 'keydown');
-  }
-
-  function callMorseInput(key: string, pressed: boolean) {
-    const out = morseInput.inputKey(key, pressed);
-    console.log(`key ${pressed ? 'down' : 'up'}: ${key} -> morse output: "${out}"`);
-
-    if (out.offTimer) {
-      setOffTimer(out.offTimer);
-    }
-
-    // out may be a single character (or space). Feed each character into letterInput
-    for (const ch of Array.from(out.char)) {
-      letterInput(ch);
-    }
-    currentCode = morseInput.showIndex();
+    morseInput.callMorseInput(key, e.type === 'keydown');
   }
 
   function letterInput(letter: string) {
@@ -390,34 +244,16 @@
       <div class="sibling next" aria-hidden="true">{ history.length >= 1 ? history[history.length - 1].word : '' }</div>
     </div>
 
-    {#if showMorse}
-      <div class="morse-buffer" aria-hidden="true">
-        <code>{currentCode}</code>
-      </div>
-    {/if}
+    <MorseInput
+      bind:this={morseInput}
+      letterInput={letterInput}
+      morseOnCallback={morseOnCallback}
+      morseOffCallback={morseOffCallback}
+    ></MorseInput>
 
     <div class="controls">
       <button onclick={loadFile} aria-label="Load a word file">Load</button>
       <button class:active={random} aria-pressed={random} onclick={toggleRandom}>Random</button>
-      <button class:active={showMorse} aria-pressed={showMorse} onclick={toggleShowMorse}>Show Code</button>
-      <label class="wpm-control">WPM:
-        <input type="range" min="5" max="40" step="1" bind:value={wpm} oninput={applyWpm} aria-label="WPM slider" />
-        <output>{wpm}</output>
-      </label>
-      <label class="input-method">Input:
-        <select onchange={(e) => {
-          console.log('setting method to', (e.target as HTMLSelectElement).value);
-          morseInput.setMethod((e.target as HTMLSelectElement).value as InputMethod)
-          console.log('method is now', morseInput.method, showMorse);
-        }
-        }>
-          <option value="raw">Raw</option>
-          <option value="side">Side</option>
-          <option value="straight">Straight</option>
-          <option value="paddle">Paddle</option>
-          <option value="iambic">Iambic</option>
-        </select>
-      </label>
     </div>
 
     <div class="history" role="table" aria-label="previous words">
@@ -444,7 +280,7 @@
   h1{margin:0 0 6px}
   .hint{color:#666;margin:0 0 18px}
   .words-row{display:flex;align-items:center;justify-content:center;gap:28px}
-  .word{display:inline-block;padding:18px 22px;border-radius:8px;border:1px dashed #e3e7ee;background:#fff;box-shadow:0 6px 14px rgba(20,30,60,0.03)}
+  .word{display:inline-block;padding:18px 22px;border-radius:8px}
   .current-word{display:flex;align-items:center}
   .sibling{font-size:2.6rem;color:#9aa4ae;font-weight:600;opacity:0.9}
   .sibling.prev{margin-right:6px}
@@ -476,8 +312,5 @@
 
   /* visual state when a draggable file is over the page */
   .mode.dragging{outline:3px dashed rgba(6,95,212,0.9);background:rgba(6,95,212,0.03)}
-
-  .morse-buffer{margin-top:10px;color:#234;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;font-size:1rem;min-height:1.2em}
-  .morse-buffer code{background:transparent;padding:2px 6px;border-radius:4px}
   .mode.morse-on{background:rgba(255, 180, 180, 0.356);transition:background .05s linear, .03s linear}
 </style>
