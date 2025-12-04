@@ -61,8 +61,6 @@
 <svelte:window onkeydown={handleKey} onkeyup={handleKey} />
 
 <main class="mode" class:morse-on={morseOn}>
-  <a class="back" href="/">← Back</a>
-
   <section class="center">
     <h1>Free Mode</h1>
     <p class="hint">Type any text into the box below. Choose an input method (UI placeholder) and adjust WPM (dummy).</p>
@@ -93,7 +91,6 @@
 
 <style>
   .mode{min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:28px}
-  .back{position:absolute;left:18px;top:18px;color:#065fd4;text-decoration:none}
   .center{max-width:880px;text-align:center;margin-top:28px}
   h1{margin:0 0 6px}
   .hint{color:#666;margin:0 0 18px}

@@ -1,6 +1,7 @@
 <script lang="ts">
     import { DEFAULT_MORSE } from '$lib/morse';
     import './layout.css';
+    import { page } from '$app/stores';
     let { children } = $props();
     let showHelp: boolean = $state(false);
 
@@ -12,7 +13,26 @@
     function toggleHelp() {
         showHelp = !showHelp;
     }
+
+    function isActive(path: string) {
+        const p = $page?.url?.pathname ?? '/';
+        if (path === '/') return p === '/';
+        return p === path || p.startsWith(path + '/') || p.startsWith(path + '?') || p === path;
+    }
 </script>
+
+<!-- top header with tabs -->
+<header class="app-header">
+    <div class="container">
+        <a class="brand" href="/">MorsePractice</a>
+        <nav class="tabs" aria-label="Primary">
+            <a href="/" class:active={isActive('/')} aria-current={isActive('/') ? 'page' : undefined}>Home</a>
+            <a href="/word" class:active={isActive('/word')} aria-current={isActive('/word') ? 'page' : undefined}>Word</a>
+            <a href="/text" class:active={isActive('/text')} aria-current={isActive('/text') ? 'page' : undefined}>Text</a>
+            <a href="/free" class:active={isActive('/free')} aria-current={isActive('/free') ? 'page' : undefined}>Free</a>
+        </nav>
+    </div>
+</header>
 
 {@render children()}
 
@@ -65,4 +85,13 @@
     .morse-table td{vertical-align:top;padding:6px 12px;border-bottom:1px solid rgba(0,0,0,0.04)}
     .morse-key{display:inline-block;width:2.2rem;font-weight:700;margin-right:10px}
     .morse-val{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;color:#234}
+
+    /* header/tabs */
+    .app-header{background:#fff;border-bottom:1px solid rgba(10,20,30,0.03);box-shadow:0 2px 6px rgba(10,20,30,0.02)}
+    .app-header .container{max-width:1100px;margin:0 auto;padding:10px 18px;display:flex;align-items:center;gap:18px}
+    .brand{font-weight:700;color:#065fd4;text-decoration:none;margin-right:12px}
+    .tabs{display:flex;gap:8px;align-items:center}
+    .tabs a{padding:8px 12px;border-radius:8px;color:#065fd4;text-decoration:none;border:1px solid transparent}
+    .tabs a:hover{background:rgba(6,95,212,0.04)}
+    .tabs a.active{background:#065fd4;color:#fff;border-color:#065fd4}
 </style>

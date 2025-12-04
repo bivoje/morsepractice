@@ -225,7 +225,6 @@
 <svelte:window onkeydown={handleKey} onkeyup={handleKey} />
 
 <main class="mode" ondragover={onDragOver} ondragenter={onDragEnter} ondragleave={onDragLeave} ondrop={handleDrop} class:dragging={dragging} class:morse-on={morseOn}>
-  <a class="back" href="/">← Back</a>
 
   <section class="center">
     <h1>Word Mode</h1>
@@ -277,7 +276,6 @@
 
 <style>
   .mode{min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:28px}
-  .back{position:absolute;left:18px;top:18px;color:#065fd4;text-decoration:none}
   .center{max-width:880px;text-align:center;margin-top:28px}
   h1{margin:0 0 6px}
   .hint{color:#666;margin:0 0 18px}
