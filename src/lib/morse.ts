@@ -152,7 +152,7 @@ export class MorseDecode {
   }
 }
 
-export class MorseDecodeDouble extends MorseDecode {
+export class MorseDecodeWinder extends MorseDecode {
 
   input(key: string, pressed: boolean): void {
     if (pressed) {
@@ -165,9 +165,9 @@ export class MorseDecodeDouble extends MorseDecode {
   }
 }
 
-export class MorseDecodeTimed extends MorseDecode {
+export class MorseDecodeStraight extends MorseDecode {
   // state for timed input
-  private lastTime: number | null = null;
+  private lastTime: number = 0;
   private state: 'idle' | 'on' | 'code' | 'word' = 'idle';
 
   forceEmit(): void {
@@ -183,20 +183,13 @@ export class MorseDecodeTimed extends MorseDecode {
   */
   input(key: string, pressed: boolean): void {
     const now = Date.now();
-
-    // first transition: just record state
-    if (this.lastTime === null) {
-      this.lastTime = now;
-      return;
-    }
-
     const duration = now - this.lastTime;
 
     if (pressed) {
       this.setOffTimer(null); // clear existing timer
     }
 
-    if (this.state === 'idle') {
+    if (this.state == 'idle') {
       if (pressed) {
         this.state = 'on';
         this.lastTime = now;
@@ -218,7 +211,6 @@ export class MorseDecodeTimed extends MorseDecode {
       this.setOffTimer(this.ditDuration * 3);
 
     } else if (this.state === 'code') {
-      // measure OFF duration
       if (duration >= this.ditDuration * 3) { // letter gap
         let ch = this.resetIndex();
         if (ch) this.emitcallback(ch);
@@ -226,8 +218,8 @@ export class MorseDecodeTimed extends MorseDecode {
         this.setOffTimer(this.ditDuration * 7 - duration);
       }
       if (duration >= this.ditDuration * 7) { // word gap
-        this.emitcallback(' ');
         this.state = 'idle';
+        this.emitcallback(' ');
       }
       if (pressed) {
         this.state = 'on';
@@ -249,6 +241,143 @@ export class MorseDecodeTimed extends MorseDecode {
     } else {
       throw new Error(`invalid state: ${this.state}`);
     }
+  }
+}
+
+export class MorseDecodeIambic extends MorseDecode {
+  private onTimer: number | null = null;
+  private state: 'idle' | 'holdDot' | 'holdDash' | 'holdBoth' | 'code' | 'word' = 'idle';
+  private lastTime: number = 0;
+  private ringing: boolean = false;
+
+  startRepeatDitDot(dit: boolean): void {
+    if (this.onTimer === null) {
+      this.repeatDitDot(dit);
+    }
+  }
+  repeatDitDot(dit: boolean): void {
+    this.ringing = !this.ringing;
+    // console.log(`repeatDitDot: dit=${dit} ringing=${ringing} state=${this.state}`);
+    if (this.ringing) {
+      if (this.state == 'holdBoth') {
+        dit = !dit;
+      } else if (this.state == 'holdDot') {
+        dit = true;
+      } else if (this.state == 'holdDash') {
+        dit = false;
+      } else {
+        this.onTimer = null;
+        this.ringing = false;
+        return;
+      }
+      this.oncallback();
+      dit ? this.commitDot() : this.commitDash();
+      this.onTimer = setTimeout(() => {
+        this.repeatDitDot(dit);
+      }, dit ? this.ditDuration : this.ditDuration * 3);
+
+    } else {
+      this.lastTime = Date.now();
+      this.offcallback();
+      if (this.state.startsWith('hold')) {
+        this.onTimer = setTimeout(() => {
+          this.repeatDitDot(dit);
+          // Note, next beep is fixed at start of the gap before
+        }, this.ditDuration);
+      } else {
+        this.onTimer = null;
+        this.ringing = false;
+      }
+    }
+  }
+
+  input(key: string, pressed: boolean): void {
+    // console.log(`Iambic input: key=${key} pressed=${pressed} state=${this.state}`);
+    const now = Date.now();
+    const duration = now - this.lastTime;
+
+    if (pressed) {
+      this.setOffTimer(null); // clear existing timer
+    }
+
+    if (this.state === 'idle') {
+      if (pressed) {
+        if (key === '.') {
+          this.state = 'holdDot';
+        } else {
+          this.state = 'holdDash';
+        }
+        this.startRepeatDitDot(this.state === 'holdDot');
+      }
+
+    } else if (this.state === 'holdDot' || this.state === 'holdDash' || this.state === 'holdBoth') {
+      if (pressed) {
+        if (this.state === 'holdDot' && key === '-') {
+          this.state = 'holdBoth';
+        } else if (this.state === 'holdDash' && key === '.') {
+          this.state = 'holdBoth';
+        }
+      } else {
+        if (key === '.' && this.state === 'holdDot' || key === '-' && this.state === 'holdDash') {
+          this.state = 'code';
+        } else if (this.state === 'holdBoth' && key === '.') {
+          this.state = 'holdDash';
+        } else if (this.state === 'holdBoth' && key === '-') {
+          this.state = 'holdDot';
+        }
+        if (this.state === 'code') {
+          this.setOffTimer(this.ditDuration * 7);
+        }
+      }
+
+    } else if (this.state === 'code') {
+      // ringing check is necessary to avoid double counting gaps during keying
+      /* e.g. ditduration = '---'
+          time      0  1  2  3  4
+          dah press ---OOO---------
+          dit press --------OOO----
+          ringing   ---OOOOOOOOO---
+        in above case without ringing check, dit press would trigger word gap
+        since this.lastTime was set before time=0.
+      */
+      if (!this.ringing && duration >= this.ditDuration * 3) { // letter gap
+        let ch = this.resetIndex();
+        if (ch) this.emitcallback(ch);
+        this.state = 'word';
+        this.setOffTimer(this.ditDuration * 7 - duration);
+      }
+      if (!this.ringing && duration >= this.ditDuration * 7) { // word gap
+        this.state = 'idle';
+        this.emitcallback(' ');
+      }
+      if (pressed) {
+        if (key === '.') {
+          this.state = 'holdDot';
+        } else {
+          this.state = 'holdDash';
+        }
+        this.startRepeatDitDot(this.state === 'holdDot');
+      }
+
+    } else if (this.state === 'word') {
+      if (!this.ringing && duration >= this.ditDuration * 7) { // word gap
+        this.state = 'idle';
+        this.emitcallback(' ');
+      }
+      if (pressed) {
+        if (key === '.') {
+          this.state = 'holdDot';
+        } else {
+          this.state = 'holdDash';
+        }
+        this.startRepeatDitDot(this.state === 'holdDot');
+      }
+
+    } else {
+      throw new Error(`invalid state: ${this.state}`);
+    }
+
+    // console.log(`Iambic state: ${this.state}`);
   }
 }
 

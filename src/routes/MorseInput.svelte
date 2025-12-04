@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { MorseDecodeDouble, MorseDecodeTimed } from '$lib/morse';
+  import { MorseDecodeWinder, MorseDecodeStraight, MorseDecodeIambic } from '$lib/morse';
   import type { InputResult } from '$lib/morse';
 
 
@@ -103,40 +103,46 @@
 
   function morseOffCallback_() {
     stopBeep();
+    updateCurrentCode();
     morseOffCallback();
   }
 
   function emitCallback_(char: string) {
     updateCurrentCode();
+    updateCurrentCode();
     emitCallback(char);
   }
 
   function updateCurrentCode() {
-    if (method === 'side') {
-      currentCode = decodeSide.showIndex();
+    if (method === 'winder') {
+      currentCode = decodeWinder.showIndex();
     } else if (method === 'straight') {
       currentCode = decodeStraight.showIndex();
+    } else if (method === 'iambic') {
+      currentCode = decodeIambic.showIndex();
+    } else {
+      currentCode = '';
     }
-
   }
 
-  type InputMethod = 'raw' | 'straight' | 'side' | 'paddle' | 'iambic';
+  type InputMethod = 'raw' | 'straight' | 'winder' | 'paddle' | 'iambic';
 
-  let method: InputMethod = $state('straight');
-  const decodeSide: MorseDecodeDouble = new MorseDecodeDouble(morseOnCallback_, morseOffCallback_, emitCallback_);
-  const decodeStraight: MorseDecodeTimed = new MorseDecodeTimed(morseOnCallback_, morseOffCallback_, emitCallback_);
+  let method: InputMethod = $state('iambic');
+  const decodeWinder: MorseDecodeWinder = new MorseDecodeWinder(morseOnCallback_, morseOffCallback_, emitCallback_);
+  const decodeStraight: MorseDecodeStraight = new MorseDecodeStraight(morseOnCallback_, morseOffCallback_, emitCallback_);
+  const decodeIambic: MorseDecodeIambic = new MorseDecodeIambic(morseOnCallback_, morseOffCallback_, emitCallback_);
 
   export function callMorseInput(key: string, pressed: boolean): void {
     if (method === 'raw') {
       if (!pressed) return;
       emitCallback_(key);
 
-    } else if (method === 'side') {
+    } else if (method === 'winder') {
       if (!pressed) return;
-      if (key == 'j') decodeSide.input('.', true);
-      if (key == 'k') decodeSide.input('-', true);
+      if (key == 'j') decodeWinder.input('.', true);
+      if (key == 'k') decodeWinder.input('-', true);
       if (key == ' ' || key == 'Enter') {
-        decodeSide.forceEmit();
+        decodeWinder.forceEmit();
         emitCallback_(' ');
       }
 
@@ -149,7 +155,15 @@
       }
 
     } else if (method === 'paddle') {
+
     } else if (method === 'iambic') {
+      if (key == 'j') decodeIambic.input('.', pressed);
+      if (key == 'k') decodeIambic.input('-', pressed);
+      if ((key == ' ' || key == 'Enter') && !pressed) {
+        decodeIambic.forceEmit();
+        emitCallback_(' ');
+      }
+
     } else {
       throw new Error(`invalid input method: ${method}`);
     }
@@ -164,7 +178,7 @@
   // disallowed in the current 'runes' mode. Call on slider input/change.
   function applyWpm() {
     decodeStraight.setWPM(wpm);
-    decodeSide.setWPM(wpm);
+    decodeWinder.setWPM(wpm);
   }
 
   // Apply initial WPM immediately
@@ -182,14 +196,14 @@
 </label>
 <label class="input-method">Input:
   <select onchange={(e) => {
-    decodeSide.resetIndex();
+    decodeWinder.resetIndex();
     decodeStraight.resetIndex();
     method = (e.target as HTMLSelectElement).value as InputMethod;
   }} bind:value={method} aria-label="Morse input method selector">
     <option value="raw">Raw</option>
-    <option value="side">Side</option>
+    <option value="winder">Winder</option>
     <option value="straight">Straight</option>
-    <option value="paddle">Paddle</option>
+    <!-- <option value="paddle">Paddle</option> -->
     <option value="iambic">Iambic</option>
   </select>
 </label>

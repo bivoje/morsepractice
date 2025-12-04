@@ -81,6 +81,7 @@
 
   function letterInput(letter: string) {
     console.assert(history.length >= 2, 'no current word in history');
+    console.log(`letterInput: '${letter}'`);
 
     if (letter === '\b') {
       if (typed.length > 0) {
@@ -203,7 +204,8 @@
   function init(newWords: string[] | null = null) {
     if (newWords !== null) {
       if (newWords.length == 0) {
-        newWords = [ 'paris', 'codex', 'th is', 'te sti ng',];
+        // newWords = [ 'paris', 'codex', 'th is', 'te sti ng',];
+        newWords = [ 'dddxxx'];
       }
       words = newWords;
     }
