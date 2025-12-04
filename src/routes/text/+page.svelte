@@ -87,8 +87,40 @@
     wrongIndex = -1;
   }
 
+  import { onMount } from 'svelte';
+  import { invoke } from '@tauri-apps/api/core';
+
   // initialize
-  init('');
+  onMount(() => {
+    // svelte:window handles the keydown listener; nothing else required here
+
+    // invoke load_wordserver_from_path with no path to get default words then init with it
+    invoke<string>('load_text_from_path', { path: null }).then((defaulttext) => {
+      init(defaulttext);
+    }).catch((err) => {
+      alert('Error loading default word list: ' + String(err) );
+      init('');
+    });
+  });
+
+  import { open } from '@tauri-apps/plugin-dialog';
+
+  async function loadFile(): Promise<void> {
+    try {
+      // @ts-ignore: dynamic import - available in Tauri runtime
+      const path: string | string[] | null = await open({
+        multiple: false,
+        directory: false,
+      });
+      if (path && typeof path === 'string') {
+        const newText: string = await invoke<string>('load_text_from_path', { path });
+        init(newText);
+      }
+    } catch (err) {
+      alert('Error loading word file: ' + String(err) );
+    }
+  }
+
 
   function letterInput(char: string) {
     // Backspace handling
@@ -136,6 +168,7 @@
     <p class="hint">Type from the paragraph below. This is a UI-only page using dummy data.</p>
 
     <div class="controls">
+      <button onclick={loadFile} aria-label="Load a text file">Load</button>
       <button onclick={() => init()} aria-label="Reset paragraph">Reset</button>
     </div>
 
@@ -145,7 +178,6 @@
       morseOnCallback={morseOnCallback}
       morseOffCallback={morseOffCallback}
     ></MorseInput>
-
 
     <article class="text-para" aria-live="polite">
       {#each lines as line, li}

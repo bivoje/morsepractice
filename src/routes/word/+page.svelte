@@ -196,7 +196,7 @@
     invoke<string[]>('load_wordserver_from_path', { path: null }).then((defaultWords) => {
       init(defaultWords);
     }).catch((err) => {
-      // alert('Error loading default word list: ' + String(err) );
+      alert('Error loading default word list: ' + String(err) );
       init([]);
     });
   });
@@ -204,8 +204,7 @@
   function init(newWords: string[] | null = null) {
     if (newWords !== null) {
       if (newWords.length == 0) {
-        // newWords = [ 'paris', 'codex', 'th is', 'te sti ng',];
-        newWords = [ 'dddxxx'];
+        newWords = [ 'paris', 'codex', 'this', 'testing',];
       }
       words = newWords;
     }
