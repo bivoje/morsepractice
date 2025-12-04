@@ -14,7 +14,9 @@
     if ((e as any).ctrlKey || (e as any).altKey || (e as any).metaKey) return;
     const key = (e as KeyboardEvent).key;
 
-    morseInput.callMorseInput(key, e.type === 'keydown');
+    if (key.length == 1) {
+      morseInput.callMorseInput(key, e.type === 'keydown');
+    }
   }
 
   let morseOn: boolean = $state(false);
@@ -132,7 +134,7 @@
 
     <MorseInput
       bind:this={morseInput}
-      letterInput={letterInput}
+      emitCallback={letterInput}
       morseOnCallback={morseOnCallback}
       morseOffCallback={morseOffCallback}
     ></MorseInput>

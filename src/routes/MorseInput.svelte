@@ -4,7 +4,7 @@
 
 
   let {
-    letterInput,
+    emitCallback = (char: string) => {},
     morseOnCallback = () => {},
     morseOffCallback = () => {},
   } = $props();
@@ -12,46 +12,6 @@
   let offTimerHandle: number | null = null;
 
   let currentCode: string = $state(''); // current morse code buffer display
-
-  function setOffTimer(timeMs: number | null = null) {
-    console.log(`set off timer: ${timeMs} ms`);
-    if (offTimerHandle !== null) {
-      clearTimeout(offTimerHandle);
-      offTimerHandle = null;
-    }
-    if (timeMs !== null) {
-      offTimerHandle = setTimeout(() => {
-        console.log(`off timer expired (${timeMs} ms)`);
-        offTimerHandle = null;
-        callMorseInput('', false);
-      }, timeMs);
-    }
-  }
-
-  export function callMorseInput(key: string, pressed: boolean) {
-    if (pressed) {
-      setOffTimer(null);
-    }
-
-    const out = inputKey(key, pressed);
-    console.log(`key ${pressed ? 'down' : 'up'}: ${key} -> morse output: "${out}"`);
-
-    if (out.offTimer) {
-      setOffTimer(out.offTimer);
-    }
-
-    // out may be a single character (or space). Feed each character into letterInput
-    for (const ch of Array.from(out.char)) {
-      letterInput(ch);
-    }
-
-    if (method === 'side') {
-      currentCode = decodeSide.showIndex();
-    } else if (method === 'straight') {
-      currentCode = decodeStraight.showIndex();
-    }
-    return '';
-  }
 
   // WebAudio: use a persistent oscillator and control gain for low-latency toggles.
   // Creating/stopping an oscillator repeatedly adds latency and can drop clicks when toggled rapidly.
@@ -146,50 +106,55 @@
     morseOffCallback();
   }
 
+  function emitCallback_(char: string) {
+    updateCurrentCode();
+    emitCallback(char);
+  }
+
+  function updateCurrentCode() {
+    if (method === 'side') {
+      currentCode = decodeSide.showIndex();
+    } else if (method === 'straight') {
+      currentCode = decodeStraight.showIndex();
+    }
+
+  }
+
   type InputMethod = 'raw' | 'straight' | 'side' | 'paddle' | 'iambic';
 
   let method: InputMethod = $state('straight');
-  const decodeSide: MorseDecodeDouble = new MorseDecodeDouble(morseOnCallback_, morseOffCallback_);
-  const decodeStraight: MorseDecodeTimed = new MorseDecodeTimed(morseOnCallback_, morseOffCallback_);
+  const decodeSide: MorseDecodeDouble = new MorseDecodeDouble(morseOnCallback_, morseOffCallback_, emitCallback_);
+  const decodeStraight: MorseDecodeTimed = new MorseDecodeTimed(morseOnCallback_, morseOffCallback_, emitCallback_);
 
-  function inputKey(key: string, pressed: boolean): InputResult {
+  export function callMorseInput(key: string, pressed: boolean): void {
     if (method === 'raw') {
-      if (key === 'Backspace') {
-        return { char: '\b', offTimer: 0 };
-      }
-      return { char: key, offTimer: 0 };
+      if (!pressed) return;
+      emitCallback_(key);
 
     } else if (method === 'side') {
-      if (!pressed) return { char: '', offTimer: 0 };
-      if (key === 'j') {
-        decodeSide.commitDot();
-        return { char: '', offTimer: 0 };
+      if (!pressed) return;
+      if (key == 'j') decodeSide.input('.', true);
+      if (key == 'k') decodeSide.input('-', true);
+      if (key == ' ' || key == 'Enter') {
+        decodeSide.forceEmit();
+        emitCallback_(' ');
       }
-      if (key === 'k') {
-        decodeSide.commitDash();
-        return { char: '', offTimer: 0 };
-      }
-      if (key === ' ' || key === 'Enter') {
-        return { char: (decodeSide.forceEmit()) + ' ', offTimer: 0 };
-      }
-      return { char: '', offTimer: 0 };
 
     } else if (method === 'straight') {
       if (key === ' ' || key === 'Enter') {
-        return { char: (decodeStraight.forceEmit()) + ' ', offTimer: 0 };
+        decodeStraight.forceEmit();
+        emitCallback_(' ');
+      } else {
+        decodeStraight.input('', pressed);
       }
-      return decodeStraight.input(pressed);
 
     } else if (method === 'paddle') {
-      // unimplemented methods return null for now
-      return { char: '', offTimer: 0 };
     } else if (method === 'iambic') {
-      // unimplemented methods return null for now
-      return { char: '', offTimer: 0 };
-
     } else {
       throw new Error(`invalid input method: ${method}`);
     }
+
+    updateCurrentCode();
   }
 
   // words-per-minute control for timed morse input

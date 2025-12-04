@@ -41,15 +41,35 @@ export type InputResult = { char: string, offTimer: number, };
  */
 export class MorseDecode {
   private tree: (string | null)[] = [];
+  private offTimerHandle: number | null = null;
   protected oncallback: () => void;
   protected offcallback: () => void;
+  protected emitcallback: (ch: string) => void;
   protected ditDuration: number; // in ms
 
-  constructor(oncallback: () => void, offcallback: () => void) {
+  constructor(oncallback: () => void, offcallback: () => void, emitcallback: (ch: string) => void) {
     this.installMap(DEFAULT_MORSE);
     this.oncallback = oncallback;
     this.offcallback = offcallback;
+    this.emitcallback = emitcallback;
     this.ditDuration = 100;
+  }
+
+  input(key: string, pressed: boolean): void {
+    throw new Error('MorseDecode.input() not implemented');
+  }
+
+  setOffTimer(timeMs: number | null = null): void {
+    if (this.offTimerHandle !== null) {
+      clearTimeout(this.offTimerHandle);
+      this.offTimerHandle = null;
+    }
+    if (timeMs !== null) {
+      this.offTimerHandle = setTimeout(() => {
+        this.offTimerHandle = null;
+        this.input('', false);
+      }, timeMs);
+    }
   }
 
   // create binary search tree from map
@@ -122,17 +142,27 @@ export class MorseDecode {
     return (ch ?? '?') + ' ' + code.split('').reverse().join('');
   }
 
-  forceEmit(): string {
+  forceEmit(): void {
     const ch = this.resetIndex()
-    return ch || '';
+    if (ch) this.emitcallback(ch);
   }
 
-  setWPM(wpm: number) {
+  setWPM(wpm: number): void {
     this.ditDuration = 1200 / wpm; // in ms
   }
 }
 
 export class MorseDecodeDouble extends MorseDecode {
+
+  input(key: string, pressed: boolean): void {
+    if (pressed) {
+      if (key === '.') {
+        this.commitDot();
+      } else {
+        this.commitDash();
+      }
+    }
+  }
 }
 
 export class MorseDecodeTimed extends MorseDecode {
@@ -140,14 +170,9 @@ export class MorseDecodeTimed extends MorseDecode {
   private lastTime: number | null = null;
   private state: 'idle' | 'on' | 'code' | 'word' = 'idle';
 
-  constructor(oncallback: () => void, offcallback: () => void) {
-    super(oncallback, offcallback);
-  }
-
-  forceEmit(): string {
-    const ch = this.resetIndex()
+  forceEmit(): void {
+    super.forceEmit();
     this.state = 'idle';
-    return ch || '';
   }
 
   /*     press / release
@@ -156,18 +181,20 @@ export class MorseDecodeTimed extends MorseDecode {
   code   goto 'on' / goto code or emit letter, goto word; set timer
   word   goto 'on' / goto word or emit space, goto idle; set timer
   */
-  input(pressed: boolean) : InputResult {
+  input(key: string, pressed: boolean): void {
     const now = Date.now();
 
     // first transition: just record state
     if (this.lastTime === null) {
       this.lastTime = now;
-      return { char: '', offTimer: 0 };
+      return;
     }
 
     const duration = now - this.lastTime;
 
-    console.log(`input: pressed=${pressed}, state=${this.state}, duration=${duration} ms`);
+    if (pressed) {
+      this.setOffTimer(null); // clear existing timer
+    }
 
     if (this.state === 'idle') {
       if (pressed) {
@@ -175,7 +202,6 @@ export class MorseDecodeTimed extends MorseDecode {
         this.lastTime = now;
         this.oncallback();
       }
-      return { char: '', offTimer: 0 };
 
     } else if (this.state === 'on') {
       if (!pressed) {
@@ -189,20 +215,18 @@ export class MorseDecodeTimed extends MorseDecode {
         this.lastTime = now;
         this.offcallback();
       }
-      return { char: '', offTimer: this.ditDuration * 3 };
+      this.setOffTimer(this.ditDuration * 3);
 
     } else if (this.state === 'code') {
       // measure OFF duration
-      let ch = '';
-      let offtime = 0;
       if (duration >= this.ditDuration * 3) { // letter gap
-        ch += this.resetIndex();
-        offtime = this.ditDuration * 7 - duration;
-        console.log(`letter gap detected, emitted: ${ch}`);
+        let ch = this.resetIndex();
+        if (ch) this.emitcallback(ch);
         this.state = 'word';
+        this.setOffTimer(this.ditDuration * 7 - duration);
       }
       if (duration >= this.ditDuration * 7) { // word gap
-        ch += ' ';
+        this.emitcallback(' ');
         this.state = 'idle';
       }
       if (pressed) {
@@ -210,21 +234,17 @@ export class MorseDecodeTimed extends MorseDecode {
         this.lastTime = now;
         this.oncallback();
       }
-      return { char: ch, offTimer: offtime };
 
     } else if (this.state === 'word') {
-      let ch = '';
       if (duration >= this.ditDuration * 7) { // word gap
         this.state = 'idle';
-        ch = ' ';
-        console.log(`word gap detected, emitted: ${ch}`);
+        this.emitcallback(' ');
       }
       if (pressed) {
         this.state = 'on';
         this.lastTime = now;
         this.oncallback();
       }
-      return { char: ch, offTimer: 0 };
 
     } else {
       throw new Error(`invalid state: ${this.state}`);

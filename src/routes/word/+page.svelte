@@ -246,7 +246,7 @@
 
     <MorseInput
       bind:this={morseInput}
-      letterInput={letterInput}
+      emitCallback={letterInput}
       morseOnCallback={morseOnCallback}
       morseOffCallback={morseOffCallback}
     ></MorseInput>
