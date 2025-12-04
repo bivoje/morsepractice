@@ -28,9 +28,105 @@
     showMorse = !showMorse;
   }
 
+  function morseOncallback() {
+    console.log('morse on');
+    morseOn = true;
+    startBeep();
+  }
+
+  function morseOffcallback() {
+    console.log('morse off');
+    morseOn = false;
+    stopBeep();
+  }
+
+  // visual flag: true during a morse 'on' event (used to tint background)
+  let morseOn: boolean = $state(false);
+  // WebAudio: use a persistent oscillator and control gain for low-latency toggles.
+  // Creating/stopping an oscillator repeatedly adds latency and can drop clicks when toggled rapidly.
+  let _audioCtx: AudioContext | null = null;
+  let _osc: OscillatorNode | null = null;
+  let _gain: GainNode | null = null;
+  let _audioInitialized = false;
+
+  function ensureAudio(): AudioContext | null {
+    if (_audioCtx) return _audioCtx;
+    const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!AC) return null;
+    _audioCtx = new AC();
+    return _audioCtx;
+  }
+
+  // Initialize oscillator/gain once and keep oscillator running. startBeep/stopBeep will only adjust gain.
+  async function initAudioOnce() {
+    const ctx = ensureAudio();
+    if (!ctx) return null;
+    if (_audioInitialized) return ctx;
+    _gain = ctx.createGain();
+    // keep it effectively silent initially
+    _gain.gain.value = 0.000001;
+    _gain.connect(ctx.destination);
+
+    _osc = ctx.createOscillator();
+    _osc.type = 'sine';
+    _osc.frequency.value = 600;
+    _osc.connect(_gain);
+    try {
+      _osc.start();
+    } catch (e) {
+      // start may throw if not allowed yet; we'll still mark initialized so further resume/start attempts don't duplicate
+      console.warn('oscillator start warning', e);
+    }
+    _audioInitialized = true;
+    return ctx;
+  }
+
+  // Pre-initialize audio on first user gesture to satisfy browser autoplay/user-gesture policies.
+  if (typeof window !== 'undefined') {
+    const _unlockAudio = async () => {
+      try { await initAudioOnce(); } catch (e) { /* ignore */ }
+      window.removeEventListener('pointerdown', _unlockAudio);
+      window.removeEventListener('keydown', _unlockAudio);
+    };
+    window.addEventListener('pointerdown', _unlockAudio, { once: true });
+    window.addEventListener('keydown', _unlockAudio, { once: true });
+  }
+
+  async function startBeep() {
+    try {
+      const ctx = await initAudioOnce();
+      if (!ctx || !_gain) return;
+      if (ctx.state === 'suspended') {
+        try { await ctx.resume(); } catch (e) { /* ignore */ }
+      }
+      const t = ctx.currentTime;
+      // cancel any scheduled values and ramp quickly (fast attack)
+      _gain.gain.cancelScheduledValues(t);
+      const from = Math.max(0.000001, _gain.gain.value || 0.000001);
+      _gain.gain.setValueAtTime(from, t);
+      _gain.gain.linearRampToValueAtTime(0.08, t + 0.005);
+    } catch (err) {
+      console.error('startBeep error', err);
+    }
+  }
+
+  function stopBeep() {
+    try {
+      const ctx = _audioCtx;
+      if (!ctx || !_gain) return;
+      const t = ctx.currentTime;
+      _gain.gain.cancelScheduledValues(t);
+      _gain.gain.setValueAtTime(_gain.gain.value, t);
+      // quick release but not instant to avoid zipper artifacts
+      _gain.gain.linearRampToValueAtTime(0.000001, t + 0.01);
+      // keep oscillator running for next start to ensure minimal latency
+    } catch (err) {
+      console.error('stopBeep error', err);
+    }
+  }
+
   // input method: raw | straight | side | paddle | iambic
-  let inputMethod: InputMethod = $state('raw');
-  const morseInput = new MorseInput('raw');
+  const morseInput = new MorseInput('straight', morseOncallback, morseOffcallback);
 
   let averageWPM: string = $state('0.0');
   let wpmInterval = setInterval(() => {
@@ -69,16 +165,19 @@
   }
 
   function handleKey(e: KeyboardEvent) {
+    if (e.repeat) return;
+
     // ignore modifier-only keys
     if ((e as any).ctrlKey || (e as any).altKey || (e as any).metaKey) return;
     const key = (e as KeyboardEvent).key;
 
-    const out = morseInput.inputKey(key);
+    const out = morseInput.inputKey(key, e.type === 'keydown');
+
     // out may be a single character (or space). Feed each character into letterInput
     for (const ch of Array.from(out)) {
       letterInput(ch);
     }
-    currentCode = morseInput.decode.showIndex();
+    currentCode = morseInput.showIndex();
   }
 
   function letterInput(letter: string) {
@@ -205,7 +304,7 @@
   function init(newWords: string[] | null = null) {
     if (newWords !== null) {
       if (newWords.length == 0) {
-        newWords = [ 'paris', 'codex', 'this', 'is', 'testing', 'words'];
+        newWords = [ 'paris', 'codex', 'th is', 'te sti ng',];
       }
       words = newWords;
     }
@@ -222,9 +321,9 @@
 
 </script>
 
-<svelte:window on:keydown={handleKey} />
+<svelte:window onkeydown={handleKey} onkeyup={handleKey} />
 
-<main class="mode" ondragover={onDragOver} ondragenter={onDragEnter} ondragleave={onDragLeave} ondrop={handleDrop} class:dragging={dragging}>
+<main class="mode" ondragover={onDragOver} ondragenter={onDragEnter} ondragleave={onDragLeave} ondrop={handleDrop} class:dragging={dragging} class:morse-on={morseOn}>
   <a class="back" href="/">← Back</a>
 
   <section class="center">
@@ -246,7 +345,7 @@
       <div class="sibling next" aria-hidden="true">{ history.length >= 1 ? history[history.length - 1].word : '' }</div>
     </div>
 
-    {#if inputMethod !== 'raw' && showMorse}
+    {#if showMorse}
       <div class="morse-buffer" aria-hidden="true">
         <code>{currentCode}</code>
       </div>
@@ -257,7 +356,12 @@
       <button class:active={random} aria-pressed={random} onclick={toggleRandom}>Random</button>
       <button class:active={showMorse} aria-pressed={showMorse} onclick={toggleShowMorse}>Show Code</button>
       <label class="input-method">Input:
-        <select bind:value={inputMethod} onchange={() => morseInput.setMethod(inputMethod)}>
+        <select onchange={(e) => {
+          console.log('setting method to', (e.target as HTMLSelectElement).value);
+          morseInput.setMethod((e.target as HTMLSelectElement).value as InputMethod)
+          console.log('method is now', morseInput.method, showMorse);
+        }
+        }>
           <option value="raw">Raw</option>
           <option value="side">Side</option>
           <option value="straight">Straight</option>
@@ -326,4 +430,5 @@
 
   .morse-buffer{margin-top:10px;color:#234;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;font-size:1rem;min-height:1.2em}
   .morse-buffer code{background:transparent;padding:2px 6px;border-radius:4px}
+  .mode.morse-on{background:rgba(255, 180, 180, 0.356);transition:background .05s linear, .03s linear}
 </style>
