@@ -10,14 +10,22 @@
 
 	function letterInput(char: string) {
 		if (char === '=') {
-			content = content.trimEnd();
+			while (content.endsWith('␣')) {
+				content = content.slice(0, -1);
+			}
 			content = content.slice(0, -1);
-			content = content.trimEnd();
+			while (content.endsWith('␣')) {
+				content = content.slice(0, -1);
+			}
 			return;
 		}
 
 		if (char === ';') {
 			char = '\n';
+		}
+
+		if (char === ' ') {
+			char = '␣';
 		}
 
 		content += char;
