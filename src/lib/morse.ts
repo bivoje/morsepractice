@@ -12,10 +12,14 @@ export const DEFAULT_MORSE: MorseMap = {
     '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-',
     '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.',
 
-    '.': '.-.-.-', ',': '--..--', '?': '..--..', "'": '.----.', '-': '-....-',
-    ';': '-.-.-.',
+    "'": '..--', '.': '.-.-', ',': '---.', ';': '----',
+    '-': '.-...', '=': '-...-', '?': '-.---',
+
+    // '.': '.-.-.-', ',': '--..--', '?': '..--..', "'": '.----.', '-': '-....-',
+    // ';': '-.-.-.', '=': '-...-',
+
     // '/': '-..-.', '(': '-.--.', ')': '-.--.-', '&': '.-...', ':': '---...',
-    // '=': '-...-', '+': '.-.-.', '_': '..--.-',
+    // '+': '.-.-.', '_': '..--.-',
     // '!': '-.-.--', '"': '.-..-.', '$': '...-..-', '@': '.--.-.',
 
     // prosigns
@@ -75,7 +79,7 @@ export class MorseDecode {
   // create binary search tree from map
   installMap(map: MorseMap) {
     const maxLen = Math.max(...Object.values(map).map(code => code.length));
-    const size = Math.pow(2, maxLen + 1);
+    const size = Math.pow(2, maxLen + 1) - 1;
     let tree = new Array<string | null>(size).fill(null);
 
     for (const [char, code] of Object.entries(map)) {
@@ -114,6 +118,20 @@ export class MorseDecode {
 
   dumpTree(): void {
     console.log(this.tree);
+    for (let i = 0; i < this.tree.length; i++) {
+      let code = '';
+      let index = i;
+      while (index > 0) {
+        if (index % 2 === 1) {
+          code += '.';
+        } else {
+          code += '-';
+        }
+        index = Math.floor((index - 1) / 2);
+      }
+      code = code.split('').reverse().join('');
+      console.log(code + ': ' + (this.tree[i] ?? '∄'));
+    }
   }
 
   index: number = 0;
@@ -130,6 +148,7 @@ export class MorseDecode {
     this.index = 2 * this.index + 2;
   }
   showIndex() : string {
+    if (this.index === 0) return '';
     let code = '';
     let index = this.index;
     while (index > 0) {
@@ -142,7 +161,7 @@ export class MorseDecode {
     }
 
     const ch = this.tree[this.index];
-    return (ch ?? '?') + ' ' + code.split('').reverse().join('');
+    return (ch ?? '∄') + ' ' + code.split('').reverse().join('');
   }
 
   forceEmit(): void {

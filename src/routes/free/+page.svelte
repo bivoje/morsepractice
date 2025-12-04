@@ -10,7 +10,9 @@
 
 	function letterInput(char: string) {
 		if (char === '=') {
+			content = content.trimEnd();
 			content = content.slice(0, -1);
+			content = content.trimEnd();
 			return;
 		}
 
