@@ -193,7 +193,7 @@
   }
 
   // words-per-minute control for timed morse input
-  let wpm: number = $state(20);
+  let wpm: number = $state(15);
 
   // Explicit updater for WPM — avoids Svelte reactive statements that are
   // disallowed in the current 'runes' mode. Call on slider input/change.
