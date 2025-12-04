@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "morsepractice",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "identifier": "com.jonathan.morsepractice",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "morsepractice v1.0.0",
+        "title": "morsepractice v2.0.0",
         "width": 800,
         "height": 650,
         "dragDropEnabled": false
