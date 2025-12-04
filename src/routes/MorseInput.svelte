@@ -128,7 +128,6 @@
   const decodeWinder: MorseDecodeWinder = new MorseDecodeWinder(morseOnCallback_, morseOffCallback_, emitCallback_);
   const decodeStraight: MorseDecodeStraight = new MorseDecodeStraight(morseOnCallback_, morseOffCallback_, emitCallback_);
   const decodeIambic: MorseDecodeIambic = new MorseDecodeIambic(morseOnCallback_, morseOffCallback_, emitCallback_);
-  decodeWinder.dumpTree();
 
   export function callMorseInput(key: string, pressed: boolean): void {
     if (method === 'raw') {

@@ -9,7 +9,7 @@
   let morseInput: MorseInput;
 
 	function letterInput(char: string) {
-		if (char === '\b') {
+		if (char === '=') {
 			content = content.slice(0, -1);
 			return;
 		}
@@ -48,7 +48,7 @@
 
 </script>
 
-<svelte:window on:keydown={handleKey} on:keyup={handleKey} />
+<svelte:window onkeydown={handleKey} onkeyup={handleKey} />
 
 <main class="mode" class:morse-on={morseOn}>
   <a class="back" href="/">← Back</a>
