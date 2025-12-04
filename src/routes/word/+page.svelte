@@ -31,11 +31,6 @@
     }
   }, 500);
 
-  function toggleRandom() {
-    random = !random;
-    init();
-  }
-
   function nextWord() {
     let idx = history.length ? history[history.length - 1].idx : -1;
     let newIdx = idx;
@@ -58,8 +53,11 @@
 
   let morseInput: MorseInput;
 
+  let makeSound: boolean = $state(true);
+
   // visual flag: true during a morse 'on' event (used to tint background)
   let morseOn: boolean = $state(false);
+  let flash: boolean = $state(false);
 
   function morseOnCallback() {
     morseOn = true;
@@ -196,7 +194,7 @@
     invoke<string[]>('load_wordserver_from_path', { path: null }).then((defaultWords) => {
       init(defaultWords);
     }).catch((err) => {
-      alert('Error loading default word list: ' + String(err) );
+      // alert('Error loading default word list: ' + String(err) );
       init([]);
     });
   });
@@ -223,7 +221,7 @@
 
 <svelte:window onkeydown={handleKey} onkeyup={handleKey} />
 
-<main class="mode" ondragover={onDragOver} ondragenter={onDragEnter} ondragleave={onDragLeave} ondrop={handleDrop} class:dragging={dragging} class:morse-on={morseOn}>
+<main class="mode" ondragover={onDragOver} ondragenter={onDragEnter} ondragleave={onDragLeave} ondrop={handleDrop} class:dragging={dragging} class:morse-on={morseOn && flash}>
 
   <section class="center">
     <h1>Word Mode</h1>
@@ -246,14 +244,17 @@
 
     <MorseInput
       bind:this={morseInput}
+      makeSound={makeSound}
       emitCallback={letterInput}
       morseOnCallback={morseOnCallback}
       morseOffCallback={morseOffCallback}
     ></MorseInput>
 
     <div class="controls">
+      <button class:active={makeSound} aria-pressed={makeSound} onclick={() => makeSound = !makeSound}>Sound</button>
+      <button class:active={flash} aria-pressed={flash} onclick={() => flash = !flash}>Flash</button>
       <button onclick={loadFile} aria-label="Load a word file">Load</button>
-      <button class:active={random} aria-pressed={random} onclick={toggleRandom}>Random</button>
+      <button class:active={random} aria-pressed={random} onclick={() => {random = !random; init();}}>Random</button>
     </div>
 
     <div class="history" role="table" aria-label="previous words">

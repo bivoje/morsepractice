@@ -20,6 +20,19 @@
 			return;
 		}
 
+		if (char === '$') {
+			while (content.endsWith('␣')) {
+				content = content.slice(0, -1);
+			}
+			while (content.length > 0 && content[content.length - 1] !== '␣') {
+				content = content.slice(0, -1);
+			}
+			while (content.endsWith('␣')) {
+				content = content.slice(0, -1);
+			}
+			return;
+		}
+
 		if (char === ';') {
 			char = '\n';
 		}
@@ -31,7 +44,11 @@
 		content += char;
 	}
 
+	let makeSound: boolean = $state(true);
+
 	let morseOn: boolean = $state(false);
+	let flash: boolean = $state(false);
+
 	function morseOnCallback() {
 		morseOn = true;
 	}
@@ -60,17 +77,20 @@
 
 <svelte:window onkeydown={handleKey} onkeyup={handleKey} />
 
-<main class="mode" class:morse-on={morseOn}>
+<main class="mode" class:morse-on={morseOn && flash}>
   <section class="center">
     <h1>Free Mode</h1>
     <p class="hint">Type any text into the box below. Choose an input method (UI placeholder) and adjust WPM (dummy).</p>
 
     <div class="controls">
+			<button class:active={makeSound} aria-pressed={makeSound} onclick={() => makeSound = !makeSound}>Sound</button>
+      <button class:active={flash} aria-pressed={flash} onclick={() => flash = !flash}>Flash</button>
       <button onclick={clear} aria-label="clear">Reset</button>
     </div>
 
     <MorseInput
       bind:this={morseInput}
+      makeSound={makeSound}
       emitCallback={letterInput}
       morseOnCallback={morseOnCallback}
       morseOffCallback={morseOffCallback}
@@ -96,7 +116,8 @@
   .hint{color:#666;margin:0 0 18px}
 
   .controls{margin-top:12px;display:flex;gap:8px;justify-content:center;align-items:center}
-  .controls button{padding:6px 10px;border-radius:6px;border:1px solid #cfd9ea;background:#f8fbff;color:#065fd4;cursor:pointer}
+  .controls button{padding:2px 10px;border-radius:6px;border:1px solid #cfd9ea;background:#f8fbff;color:#065fd4;cursor:pointer}
+  .controls button.active, .controls button[aria-pressed="true"]{background:#065fd4;color:#fff;border-color:#065fd4}
 
   .editor{margin-top:14px}
   textarea{width:min(800px,100%);min-height:240px;padding:12px;border-radius:8px;border:1px solid rgba(10,20,30,0.06);font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;font-size:2rem}

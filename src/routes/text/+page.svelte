@@ -19,7 +19,10 @@
     }
   }
 
+  let makeSound: boolean = $state(true);
+
   let morseOn: boolean = $state(false);
+  let flash: boolean = $state(false);
 
   function morseOnCallback() {
     morseOn = true;
@@ -98,7 +101,7 @@
     invoke<string>('load_text_from_path', { path: null }).then((defaulttext) => {
       init(defaulttext);
     }).catch((err) => {
-      alert('Error loading default word list: ' + String(err) );
+      // alert('Error loading default word list: ' + String(err) );
       init('');
     });
   });
@@ -161,19 +164,22 @@
 
 <svelte:window onkeydown={handleKey} onkeyup={handleKey} />
 
-<main class="mode" ondragover={onDragOver} ondragenter={onDragEnter} ondragleave={onDragLeave} ondrop={handleDrop} class:dragging={dragging} class:morse-on={morseOn}>
+<main class="mode" ondragover={onDragOver} ondragenter={onDragEnter} ondragleave={onDragLeave} ondrop={handleDrop} class:dragging={dragging} class:morse-on={morseOn && flash}>
 
   <section class="center">
     <h1>Text Mode</h1>
     <p class="hint">Type from the paragraph below. This is a UI-only page using dummy data.</p>
 
     <div class="controls">
+      <button class:active={makeSound} aria-pressed={makeSound} onclick={() => makeSound = !makeSound}>Sound</button>
+      <button class:active={flash} aria-pressed={flash} onclick={() => flash = !flash}>Flash</button>
       <button onclick={loadFile} aria-label="Load a text file">Load</button>
       <button onclick={() => init()} aria-label="Reset paragraph">Reset</button>
     </div>
 
     <MorseInput
       bind:this={morseInput}
+      makeSound={makeSound}
       emitCallback={letterInput}
       morseOnCallback={morseOnCallback}
       morseOffCallback={morseOffCallback}
@@ -206,7 +212,8 @@
     max-height:40vh;overflow:auto}
   .text-para p{margin:0 0 10px;line-height:1.6;color:#222;font-size:2rem;white-space:pre-wrap;word-break:break-word}
   .controls{margin-top:12px;display:flex;gap:8px;justify-content:center;align-items:center}
-  .controls button{padding:6px 10px;border-radius:6px;border:1px solid #cfd9ea;background:#f8fbff;color:#065fd4;cursor:pointer}
+  .controls button{padding:2px 10px;border-radius:6px;border:1px solid #cfd9ea;background:#f8fbff;color:#065fd4;cursor:pointer}
+  .controls button.active, .controls button[aria-pressed="true"]{background:#065fd4;color:#fff;border-color:#065fd4}
   /* render an inline newline marker span at end of each line so it's selectable */
   .newline{color:#8b949e;margin-left:6px;font-size:0.9em;opacity:0.95;user-select:text}
   /* render chars inline so text selection and drag feel continuous */

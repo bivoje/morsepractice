@@ -3,6 +3,7 @@
 
 
   let {
+    makeSound = true,
     emitCallback = (char: string) => {},
     morseOnCallback = () => {},
     morseOffCallback = () => {},
@@ -94,7 +95,7 @@
   }
 
   function morseOnCallback_() {
-    startBeep();
+    if (makeSound) startBeep();
     morseOnCallback();
   }
 
