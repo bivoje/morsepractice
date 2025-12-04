@@ -2,7 +2,7 @@ import { on } from "svelte/events";
 
 export type MorseMap = Record<string, string>;
 
-const DEFAULT_MORSE: MorseMap = {
+export const DEFAULT_MORSE: MorseMap = {
     'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.',
     'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..',
     'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.',
@@ -12,19 +12,19 @@ const DEFAULT_MORSE: MorseMap = {
     '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-',
     '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.',
 
-    '.': '.-.-.-', ',': '--..--', '?': '..--..', "'": '.----.', '!': '-.-.--',
-    '/': '-..-.', '(': '-.--.', ')': '-.--.-', '&': '.-...', ':': '---...',
-    ';': '-.-.-.', '=': '-...-', '+': '.-.-.', '-': '-....-', '_': '..--.-',
-    '"': '.-..-.', '$': '...-..-', '@': '.--.-.',
+    '.': '.-.-.-', ',': '--..--', '?': '..--..', "'": '.----.', '-': '-....-',
+    ';': '-.-.-.',
+    // '/': '-..-.', '(': '-.--.', ')': '-.--.-', '&': '.-...', ':': '---...',
+    // '=': '-...-', '+': '.-.-.', '_': '..--.-',
+    // '!': '-.-.--', '"': '.-..-.', '$': '...-..-', '@': '.--.-.',
 
     // prosigns
-    'AR': '.-.-.', // end of message
-    'AS': '.-...', // wait
-    'BT': '-...-', // new paragraph
-    'SK': '...-.-', // end of contact
-    'HH': '........', // error
-    'CT': '-.-.-', // start copying
-    'RN': '.-.-.', // next message follows
+    // 'HH': '........', // error
+    // 'SK': '...-.-', // end work
+    // 'SN': '...-.', // verify
+    // 'UA': '..-.-', // please repeat
+    // 'AS': '.-...', // wait
+    // 'AR': '.-.-.', // end message
 };
 
 export type InputResult = { char: string, offTimer: number, };
@@ -75,7 +75,7 @@ export class MorseDecode {
   // create binary search tree from map
   installMap(map: MorseMap) {
     const maxLen = Math.max(...Object.values(map).map(code => code.length));
-    const size = Math.pow(2, maxLen + 1) - 1;
+    const size = Math.pow(2, maxLen + 1);
     let tree = new Array<string | null>(size).fill(null);
 
     for (const [char, code] of Object.entries(map)) {
@@ -88,6 +88,9 @@ export class MorseDecode {
         } else {
           throw new Error(`invalid Morse symbol: ${symbol}`);
         }
+      }
+      if (tree[index] !== null) {
+        console.warn(`MorseDecode: warning, duplicate code for '${char}' and '${tree[index]}'`);
       }
       tree[index] = char;
     }

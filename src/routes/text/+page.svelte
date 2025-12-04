@@ -98,6 +98,10 @@
       return;
     }
 
+    if (char == ';') {
+      char = '\n';
+    }
+
     if (char === 'Enter') char = '\n';
     if (char.length !== 1) return;
 
@@ -132,6 +136,10 @@
     <h1>Text Mode</h1>
     <p class="hint">Type from the paragraph below. This is a UI-only page using dummy data.</p>
 
+    <div class="controls">
+      <button onclick={() => init()} aria-label="Reset paragraph">Reset</button>
+    </div>
+
     <MorseInput
       bind:this={morseInput}
       emitCallback={letterInput}
@@ -164,8 +172,11 @@
   h1{margin:0 0 6px}
   .hint{color:#666;margin:0 0 18px}
 
-  .text-para{margin-top:18px;text-align:left;background:#fff;padding:18px;border-radius:8px;border:1px solid rgba(10,20,30,0.04);box-shadow:0 6px 14px rgba(20,30,60,0.03)}
+  .text-para{margin-top:18px;text-align:left;background:#fff;padding:18px;border-radius:8px;border:1px solid rgba(10,20,30,0.04);box-shadow:0 6px 14px rgba(20,30,60,0.03);
+    max-height:40vh;overflow:auto}
   .text-para p{margin:0 0 10px;line-height:1.6;color:#222;font-size:2rem;white-space:pre-wrap;word-break:break-word}
+  .controls{margin-top:12px;display:flex;gap:8px;justify-content:center;align-items:center}
+  .controls button{padding:6px 10px;border-radius:6px;border:1px solid #cfd9ea;background:#f8fbff;color:#065fd4;cursor:pointer}
   /* render an inline newline marker span at end of each line so it's selectable */
   .newline{color:#8b949e;margin-left:6px;font-size:0.9em;opacity:0.95;user-select:text}
   /* render chars inline so text selection and drag feel continuous */

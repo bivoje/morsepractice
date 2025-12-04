@@ -1,6 +1,5 @@
 <script lang="ts">
   import { MorseDecodeWinder, MorseDecodeStraight, MorseDecodeIambic } from '$lib/morse';
-  import type { InputResult } from '$lib/morse';
 
 
   let {
@@ -8,8 +7,6 @@
     morseOnCallback = () => {},
     morseOffCallback = () => {},
   } = $props();
-
-  let offTimerHandle: number | null = null;
 
   let currentCode: string = $state(''); // current morse code buffer display
 
@@ -125,12 +122,13 @@
     }
   }
 
-  type InputMethod = 'raw' | 'straight' | 'winder' | 'paddle' | 'iambic';
+  type InputMethod = 'raw' | 'straight' | 'winder' | 'iambic';
 
   let method: InputMethod = $state('iambic');
   const decodeWinder: MorseDecodeWinder = new MorseDecodeWinder(morseOnCallback_, morseOffCallback_, emitCallback_);
   const decodeStraight: MorseDecodeStraight = new MorseDecodeStraight(morseOnCallback_, morseOffCallback_, emitCallback_);
   const decodeIambic: MorseDecodeIambic = new MorseDecodeIambic(morseOnCallback_, morseOffCallback_, emitCallback_);
+  decodeWinder.dumpTree();
 
   export function callMorseInput(key: string, pressed: boolean): void {
     if (method === 'raw') {
@@ -153,8 +151,6 @@
       } else {
         decodeStraight.input('', pressed);
       }
-
-    } else if (method === 'paddle') {
 
     } else if (method === 'iambic') {
       if (key == 'j') decodeIambic.input('.', pressed);
@@ -203,7 +199,6 @@
     <option value="raw">Raw</option>
     <option value="winder">Winder</option>
     <option value="straight">Straight</option>
-    <!-- <option value="paddle">Paddle</option> -->
     <option value="iambic">Iambic</option>
   </select>
 </label>
