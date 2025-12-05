@@ -94,14 +94,33 @@
     }
   }
 
+  let lastOff: number = $state(0);
+  let excessTime: number = $state(0);
+  let excessSpace: boolean = $state(false);
+
   function morseOnCallback_() {
     if (makeSound) startBeep();
+
+    if (lastOff > 0) {
+      const duration = Date.now() - lastOff;
+      const ditDuration = decodeIambic.getDitDuration();
+      if (duration >= ditDuration * 7) {
+        excessTime = (duration - ditDuration * 7) / ditDuration;
+        excessSpace = false;
+      } else if (duration >= ditDuration * 3) {
+        excessTime = (duration - ditDuration * 3) / ditDuration;
+        excessSpace = true;
+      }
+    }
+
     morseOnCallback();
   }
 
   function morseOffCallback_() {
     stopBeep();
     updateCurrentCode();
+    lastOff = Date.now();
+
     morseOffCallback();
   }
 
@@ -182,6 +201,20 @@
   applyWpm();
 </script>
 
+<div class="excess-row">
+  {#if lastOff > 0}
+      {#key excessTime}
+      {@const ratio = Math.min(1, excessTime / 4)}
+        <div class="excess-left"><strong>+{excessTime.toFixed(2)}</strong> dits</div>
+        <div class="excess-bar" aria-hidden="true">
+          <div class="excess-fill" style="width: {Math.round(ratio * 100)}%; background-color: hsl({120 * (1 - ratio)}, {excessSpace? 70: 0}%, 45%)"></div>
+        </div>
+      {/key}
+  {:else}
+    <div class="excess-left">0 dits</div>
+    <div class="excess-bar empty" aria-hidden="true"><div class="excess-fill" style="width:0%"></div></div>
+  {/if}
+</div>
 
 <div class="morse-buffer" aria-hidden="true">
   <code>{currentCode}</code>
@@ -208,4 +241,9 @@
 <style>
   .morse-buffer{margin-top:10px;color:#234;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;font-size:1rem;min-height:1.2em}
   .morse-buffer code{background:transparent;padding:2px 6px;border-radius:4px}
+  .excess-row{display:flex;align-items:center;gap:8px;margin-top:6px}
+  .excess-left{width:130px;text-align:right;color:#334;font-family:ui-monospace,monospace;font-size:.9rem}
+  .excess-bar{flex:1;height:14px;background:linear-gradient(90deg,#eef,#ddd);border-radius:6px;overflow:hidden;border:1px solid rgba(0,0,0,0.06)}
+  .excess-bar.empty{background:transparent}
+  .excess-fill{height:100%;transition:width 0.12s linear, background-color 0.12s linear}
 </style>

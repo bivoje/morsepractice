@@ -177,14 +177,6 @@
       <button onclick={() => init()} aria-label="Reset paragraph">Reset</button>
     </div>
 
-    <MorseInput
-      bind:this={morseInput}
-      makeSound={makeSound}
-      emitCallback={letterInput}
-      morseOnCallback={morseOnCallback}
-      morseOffCallback={morseOffCallback}
-    ></MorseInput>
-
     <article class="text-para" aria-live="polite">
       {#each lines as line, li}
         <p>
@@ -199,6 +191,14 @@
         </p>
       {/each}
     </article>
+
+    <MorseInput
+      bind:this={morseInput}
+      makeSound={makeSound}
+      emitCallback={letterInput}
+      morseOnCallback={morseOnCallback}
+      morseOffCallback={morseOffCallback}
+    ></MorseInput>
   </section>
 </main>
 

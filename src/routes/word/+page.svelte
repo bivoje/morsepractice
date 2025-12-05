@@ -79,13 +79,17 @@
 
   function letterInput(letter: string) {
     console.assert(history.length >= 2, 'no current word in history');
-    console.log(`letterInput: '${letter}'`);
 
     if (letter === '\b') {
       if (typed.length > 0) {
         typed = typed.slice(0, -1);
       }
       wrongIndex = -1;
+      return;
+    }
+
+    if (typed.length == 0 && letter === ' ') {
+      // ignore leading spaces
       return;
     }
 
@@ -215,8 +219,6 @@
     nextWord();
     nextWord();
   }
-
-
 </script>
 
 <svelte:window onkeydown={handleKey} onkeyup={handleKey} />

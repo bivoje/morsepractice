@@ -63,6 +63,10 @@ export class MorseDecode {
     throw new Error('MorseDecode.input() not implemented');
   }
 
+  getDitDuration(): number {
+    return this.ditDuration;
+  }
+
   setOffTimer(timeMs: number | null = null): void {
     if (this.offTimerHandle !== null) {
       clearTimeout(this.offTimerHandle);
