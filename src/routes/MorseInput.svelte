@@ -173,8 +173,9 @@
   // Explicit updater for WPM — avoids Svelte reactive statements that are
   // disallowed in the current 'runes' mode. Call on slider input/change.
   function applyWpm() {
-    decodeStraight.setWPM(wpm);
     decodeWinder.setWPM(wpm);
+    decodeStraight.setWPM(wpm);
+    decodeIambic.setWPM(wpm);
   }
 
   // Apply initial WPM immediately
@@ -194,6 +195,7 @@
   <select onchange={(e) => {
     decodeWinder.resetIndex();
     decodeStraight.resetIndex();
+    decodeIambic.resetIndex();
     method = (e.target as HTMLSelectElement).value as InputMethod;
   }} bind:value={method} aria-label="Morse input method selector">
     <option value="raw">Raw</option>
