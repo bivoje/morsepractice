@@ -20,6 +20,7 @@
   }
 
   let makeSound: boolean = $state(true);
+  let random: boolean = $state(true);
 
   let morseOn: boolean = $state(false);
   let flash: boolean = $state(false);
@@ -70,21 +71,45 @@
     }
   }
 
+  function toggleRandom() {
+    random = !random;
+    if (random) {
+      initParagraph(Math.floor(Math.random() * paras.length));
+    }
+  }
+
   // Text-mode typing state
+  let paras: string[] = $state([]);
+  let paraIndex: number = $state(0);
   let lines: string[] = $state([])
   let lineIndex: number = $state(0);
   let cursorIndex: number = $state(0); // number of characters correctly typed so far
   let wrongIndex: number = $state(-1);
   let wrongTimeout: number | undefined;
 
-  function init(fromParagraph?: string) {
-    if (fromParagraph !== undefined) {
-      if (fromParagraph == '') {
-        fromParagraph = 'roses are red\nviolets are blue\nmorse code is fun\nto practice with you';
+  function init(fromString?: string) {
+    // If provided, split the incoming text into paragraphs separated by
+    // two (or more) consecutive newlines. Preserve internal newlines inside
+    // paragraphs and ensure each paragraph ends with a single newline so
+    // the UI rendering code can show an inline newline marker.
+    if (fromString !== undefined) {
+      if (fromString == '') {
+        fromString = 'roses are red\nviolets are blue\nmorse code is fun\nto practice with you';
       }
-      lines = fromParagraph.split(/\r?\n/).map(line => line + '\n');
+
+      // split into paragraphs; trim each and keep non-empty paragraphs
+      paras = fromString
+        .split(/\r?\n\r?\n+/)
+        .map(p => p.replace(/\r?\n/g, '\n').trim())
+        .filter(p => p.length > 0)
     }
 
+    initParagraph(random ? Math.floor(Math.random() * lines.length) : 0);
+  }
+
+  function initParagraph(paraIndex: number) {
+    lines = paras[paraIndex].split('\n').map(line => line + '\n');
+    paraIndex = 0;
     lineIndex = 0;
     cursorIndex = 0;
     wrongIndex = -1;
@@ -143,7 +168,7 @@
         lineIndex++;
         cursorIndex = 0;
       }  else {
-        init(); // end of text reached, restart
+        initParagraph(random ? Math.floor(Math.random() * paras.length) : (paraIndex+1) % paras.length);
         return;
       }
     }
@@ -171,6 +196,7 @@
     <div class="controls">
       <button class:active={makeSound} aria-pressed={makeSound} onclick={() => makeSound = !makeSound}>Sound</button>
       <button class:active={flash} aria-pressed={flash} onclick={() => flash = !flash}>Flash</button>
+      <button class:active={random} aria-pressed={random} onclick={toggleRandom}>Random</button>
       <button onclick={loadFile} aria-label="Load a text file">Load</button>
       <button onclick={() => init()} aria-label="Reset paragraph">Reset</button>
     </div>
