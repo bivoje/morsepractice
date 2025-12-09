@@ -1,4 +1,5 @@
 <script>
+	import { resolve } from '$app/paths';
 </script>
 
 <main class="container">
@@ -9,38 +10,38 @@
 
 	<ul class="grid" role="list">
 		<li role="listitem">
-			<a class="card" href="/word">
+			<a class="card" href={resolve('/word')}>
 				<div class="icon" aria-hidden="true">
 				<!-- word icon -->
 				<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h16"/></svg>
-			</div>
-			<h2>Word Mode</h2>
-			<p>Practice individual words one at a time. Great for focused accuracy drills.</p>
-			<span class="cta">Start</span>
+				</div>
+				<h2>Word Mode</h2>
+				<p>Practice individual words one at a time. Great for focused accuracy drills.</p>
+				<span class="cta">Start</span>
 			</a>
 		</li>
 
 		<li role="listitem">
-			<a class="card" href="/text">
+			<a class="card" href={resolve('/text')}>
 				<div class="icon" aria-hidden="true">
 				<!-- text icon -->
 				<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 9h8M8 13h5"/></svg>
-			</div>
-			<h2>Text Mode</h2>
-			<p>Type full sentences or paragraphs to practice rhythm and spacing.</p>
-			<span class="cta">Start</span>
+				</div>
+				<h2>Text Mode</h2>
+				<p>Type full sentences or paragraphs to practice rhythm and spacing.</p>
+				<span class="cta">Start</span>
 			</a>
 		</li>
 
 		<li role="listitem">
-			<a class="card" href="/free">
+			<a class="card" href={resolve('/free')}>
 				<div class="icon" aria-hidden="true">
 				<!-- free icon -->
 				<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg>
-			</div>
-			<h2>Free Mode</h2>
-			<p>Type whatever you like — freeform practice with live feedback.</p>
-			<span class="cta">Start</span>
+				</div>
+				<h2>Free Mode</h2>
+				<p>Type whatever you like — freeform practice with live feedback.</p>
+				<span class="cta">Start</span>
 			</a>
 		</li>
 	</ul>

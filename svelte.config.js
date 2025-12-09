@@ -12,6 +12,13 @@ const config = {
     adapter: adapter({
       fallback: "index.html",
     }),
+    // Allow overriding the base path (useful for GitHub Pages/project pages).
+    // Only apply the override for production builds so the dev server
+    // continues to run at '/'. Set `SVELTE_BASE` to your repo path
+    // (e.g. '/my-repo') when building for GitHub Pages.
+    paths: {
+      base: (process.env.SVELTE_BASE && process.env.NODE_ENV === 'production') ? process.env.SVELTE_BASE : '',
+    },
   },
 };
 

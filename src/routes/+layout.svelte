@@ -2,6 +2,7 @@
     import { DEFAULT_MORSE } from '$lib/morse';
     import './layout.css';
     import { page } from '$app/stores';
+    import { resolve } from '$app/paths';
     let { children } = $props();
     let showHelp: boolean = $state(false);
 
@@ -15,7 +16,12 @@
     }
 
     function isActive(path: string) {
-        const p = $page?.url?.pathname ?? '/';
+        // strip resolved base prefix from the current pathname for comparisons
+        const raw = $page?.url?.pathname ?? '/';
+        const resolvedRoot = resolve('/') || '/';
+        // normalize by removing trailing slash so comparisons are consistent
+        const b = resolvedRoot.endsWith('/') ? resolvedRoot.slice(0, -1) : resolvedRoot;
+        const p = b !== '' && raw.startsWith(b) ? raw.slice(b.length) || '/' : raw;
         if (path === '/') return p === '/';
         return p === path || p.startsWith(path + '/') || p.startsWith(path + '?') || p === path;
     }
@@ -24,12 +30,12 @@
 <!-- top header with tabs -->
 <header class="app-header">
     <div class="container">
-        <a class="brand" href="/">MorsePractice</a>
+        <a class="brand" href={resolve('/')}>MorsePractice</a>
         <nav class="tabs" aria-label="Primary">
-            <a href="/" class:active={isActive('/')} aria-current={isActive('/') ? 'page' : undefined}>Home</a>
-            <a href="/word" class:active={isActive('/word')} aria-current={isActive('/word') ? 'page' : undefined}>Word</a>
-            <a href="/text" class:active={isActive('/text')} aria-current={isActive('/text') ? 'page' : undefined}>Text</a>
-            <a href="/free" class:active={isActive('/free')} aria-current={isActive('/free') ? 'page' : undefined}>Free</a>
+            <a href={resolve('/')} class:active={isActive('/')} aria-current={isActive('/') ? 'page' : undefined}>Home</a>
+            <a href={resolve('/word')} class:active={isActive('/word')} aria-current={isActive('/word') ? 'page' : undefined}>Word</a>
+            <a href={resolve('/text')} class:active={isActive('/text')} aria-current={isActive('/text') ? 'page' : undefined}>Text</a>
+            <a href={resolve('/free')} class:active={isActive('/free')} aria-current={isActive('/free') ? 'page' : undefined}>Free</a>
         </nav>
     </div>
 </header>

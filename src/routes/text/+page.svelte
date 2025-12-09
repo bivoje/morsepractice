@@ -104,7 +104,7 @@
         .filter(p => p.length > 0)
     }
 
-    initParagraph(random ? Math.floor(Math.random() * lines.length) : 0);
+    initParagraph(random ? Math.floor(Math.random() * paras.length) : 0);
   }
 
   function initParagraph(paraIndex: number) {
