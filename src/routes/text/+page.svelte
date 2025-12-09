@@ -91,36 +91,34 @@
   }
 
   import { onMount } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
+  import defaultText from '$lib/default_text.txt?raw';
 
   // initialize
   onMount(() => {
     // svelte:window handles the keydown listener; nothing else required here
-
-    // invoke load_wordserver_from_path with no path to get default words then init with it
-    invoke<string>('load_text_from_path', { path: null }).then((defaulttext) => {
-      init(defaulttext);
-    }).catch((err) => {
-      // alert('Error loading default word list: ' + String(err) );
-      init('');
-    });
+    init(defaultText);
   });
-
-  import { open } from '@tauri-apps/plugin-dialog';
 
   async function loadFile(): Promise<void> {
     try {
-      // @ts-ignore: dynamic import - available in Tauri runtime
-      const path: string | string[] | null = await open({
-        multiple: false,
-        directory: false,
-      });
-      if (path && typeof path === 'string') {
-        const newText: string = await invoke<string>('load_text_from_path', { path });
-        init(newText);
-      }
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const text = event.target?.result;
+            if (typeof text === 'string') {
+              init(text);
+            }
+          };
+          reader.readAsText(file);
+        }
+      };
+      input.click();
     } catch (err) {
-      alert('Error loading word file: ' + String(err) );
+      alert('Error loading text file: ' + String(err));
     }
   }
 

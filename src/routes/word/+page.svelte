@@ -18,7 +18,7 @@
   // number of previous words to keep in memory (adjustable)
   let prevCount: number = $state(5);
 
-  let random: boolean = $state(false);
+  let random: boolean = $state(true);
 
   let averageWPM: string = $state('0.0');
   let wpmInterval = setInterval(() => {
@@ -172,35 +172,36 @@
     return wpmCalc([entry.word], durationSec).toFixed(1);
   }
 
-  import { open } from '@tauri-apps/plugin-dialog';
-  import { invoke } from '@tauri-apps/api/core';
+  import defaultWords from '$lib/default_words.txt?raw';
 
   async function loadFile(): Promise<void> {
     try {
-      // @ts-ignore: dynamic import - available in Tauri runtime
-      const path: string | string[] | null = await open({
-        multiple: false,
-        directory: false,
-      });
-      if (path && typeof path === 'string') {
-        const newWords: string[] = await invoke<string[]>('load_wordserver_from_path', { path });
-        init(newWords);
-      }
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const text = event.target?.result;
+            if (typeof text === 'string') {
+              const newWords = text.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+              init(newWords);
+            }
+          };
+          reader.readAsText(file);
+        }
+      };
+      input.click();
     } catch (err) {
-      alert('Error loading word file: ' + String(err) );
+      alert('Error loading word file: ' + String(err));
     }
   }
 
   onMount(() => {
     // svelte:window handles the keydown listener; nothing else required here
 
-    // invoke load_wordserver_from_path with no path to get default words then init with it
-    invoke<string[]>('load_wordserver_from_path', { path: null }).then((defaultWords) => {
-      init(defaultWords);
-    }).catch((err) => {
-      // alert('Error loading default word list: ' + String(err) );
-      init([]);
-    });
+    init(defaultWords.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0));
   });
 
   function init(newWords: string[] | null = null) {
