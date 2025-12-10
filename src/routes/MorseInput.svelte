@@ -144,7 +144,24 @@
 
   type InputMethod = 'raw' | 'straight' | 'winder' | 'iambic';
 
-  let method: InputMethod = $state('iambic');
+  // Helper functions for cookie storage
+  function getCookie(name: string): string | null {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return match ? match[2] : null;
+  }
+
+  function setCookie(name: string, value: string, days: number = 365) {
+    if (typeof document === 'undefined') return;
+    const expires = new Date(Date.now() + days * 864e5).toUTCString();
+    document.cookie = `${name}=${value}; expires=${expires}; path=/; SameSite=Lax`;
+  }
+
+  // Load settings from cookies or use defaults
+  const savedWpm = getCookie('morseWpm');
+  const savedMethod = getCookie('morseMethod');
+
+  let method: InputMethod = $state((savedMethod && ['raw', 'straight', 'winder', 'iambic'].includes(savedMethod) ? savedMethod : 'iambic') as InputMethod);
   const decodeWinder: MorseDecodeWinder = new MorseDecodeWinder(morseOnCallback_, morseOffCallback_, emitCallback_);
   const decodeStraight: MorseDecodeStraight = new MorseDecodeStraight(morseOnCallback_, morseOffCallback_, emitCallback_);
   const decodeIambic: MorseDecodeIambic = new MorseDecodeIambic(morseOnCallback_, morseOffCallback_, emitCallback_);
@@ -187,7 +204,7 @@
   }
 
   // words-per-minute control for timed morse input
-  let wpm: number = $state(15);
+  let wpm: number = $state(savedWpm ? parseInt(savedWpm, 10) : 15);
 
   // Explicit updater for WPM — avoids Svelte reactive statements that are
   // disallowed in the current 'runes' mode. Call on slider input/change.
@@ -195,6 +212,7 @@
     decodeWinder.setWPM(wpm);
     decodeStraight.setWPM(wpm);
     decodeIambic.setWPM(wpm);
+    setCookie('morseWpm', wpm.toString());
   }
 
   // Apply initial WPM immediately
@@ -230,6 +248,7 @@
     decodeStraight.resetIndex();
     decodeIambic.resetIndex();
     method = (e.target as HTMLSelectElement).value as InputMethod;
+    setCookie('morseMethod', method);
   }} bind:value={method} aria-label="Morse input method selector">
     <option value="raw">Raw</option>
     <option value="winder">Winder</option>
