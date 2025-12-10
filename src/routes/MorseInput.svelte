@@ -241,9 +241,9 @@
 <style>
   .morse-buffer{margin-top:10px;color:#234;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;font-size:1rem;min-height:1.2em}
   .morse-buffer code{background:transparent;padding:2px 6px;border-radius:4px}
-  .excess-row{display:flex;align-items:center;gap:8px;margin-top:6px}
+  .excess-row{display:flex;align-items:center;gap:8px;margin-top:6px;justify-content:center}
   .excess-left{width:130px;text-align:right;color:#334;font-family:ui-monospace,monospace;font-size:.9rem}
-  .excess-bar{flex:1;height:14px;background:linear-gradient(90deg,#eef,#ddd);border-radius:6px;overflow:hidden;border:1px solid rgba(0,0,0,0.06)}
+  .excess-bar{width:500px;height:14px;background:linear-gradient(90deg,#eef,#ddd);border-radius:6px;overflow:hidden;border:1px solid rgba(0,0,0,0.06)}
   .excess-bar.empty{background:transparent}
   .excess-fill{height:100%;transition:width 0.12s linear, background-color 0.12s linear}
 </style>

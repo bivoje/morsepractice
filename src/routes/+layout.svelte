@@ -1,7 +1,7 @@
 <script lang="ts">
     import { DEFAULT_MORSE } from '$lib/morse';
     import './layout.css';
-    import { page } from '$app/stores';
+    import { page } from '$app/state';
     import { resolve } from '$app/paths';
     let { children } = $props();
     let showHelp: boolean = $state(false);
@@ -17,7 +17,7 @@
 
     function isActive(path: string) {
         // strip resolved base prefix from the current pathname for comparisons
-        const raw = $page?.url?.pathname ?? '/';
+        const raw = page?.url?.pathname ?? '/';
         const resolvedRoot = resolve('/') || '/';
         // normalize by removing trailing slash so comparisons are consistent
         const b = resolvedRoot.endsWith('/') ? resolvedRoot.slice(0, -1) : resolvedRoot;
